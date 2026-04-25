@@ -158,7 +158,6 @@ Order tasks logically: safety/isolation first, then diagnosis, repair steps, rea
     return jsonResponse({ tasks: parsed.tasks }, 200);
   } catch (error) {
     console.error('Breakdown error:', error);
-    const msg = error instanceof Error ? error.message : 'Unknown error';
-    return jsonResponse({ error: msg }, 500);
+    return jsonResponse({ error: 'Internal server error' }, 500);
   }
 });
