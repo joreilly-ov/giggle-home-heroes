@@ -45,10 +45,10 @@ const Install = () => {
           </div>
 
           <h1 className="text-3xl font-bold text-foreground">
-            Install KisX
+            Install KisXCars
           </h1>
           <p className="text-muted-foreground">
-            Add KisX to your home screen for quick access, offline support, and a native app experience — no app store needed.
+            Add KisXCars to your home screen for quick access, offline support, and a native app experience — no app store needed.
           </p>
 
           {isInstalled ? (
