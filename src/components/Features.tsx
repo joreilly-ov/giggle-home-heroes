@@ -1,28 +1,28 @@
-import { Video, Shield, Zap, Star } from "lucide-react";
+import { Camera, Shield, Zap, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const features = [
   {
-    icon: Video,
-    title: "Video-First Projects",
-    description: "Show contractors exactly what you need with a quick video. No more misunderstandings from text descriptions.",
+    icon: Camera,
+    title: "Photo & Video Diagnosis",
+    description: "Show garages exactly what's wrong with a quick snap. No more guesswork or vague text descriptions.",
   },
   {
     icon: Zap,
-    title: "AI-Powered Bidding",
-    description: "Contractors use smart tools to analyze your project and deliver precise estimates — faster than ever.",
+    title: "AI-Powered Quotes",
+    description: "Our AI analyses the damage and helps garages deliver precise repair estimates — faster than ever.",
     link: "/ai-bidding-tools",
   },
   {
     icon: Shield,
     title: "Escrow Protection",
-    description: "Your money stays safe until you confirm the work meets your standards. Full transparency, zero risk.",
+    description: "Your money stays safe until you confirm the repair meets your standards. Full transparency, zero risk.",
     link: "/same-day-payments",
   },
   {
     icon: Star,
-    title: "Vetted Contractors",
-    description: "Every contractor is verified with license checks, reviews, and performance history before joining.",
+    title: "Vetted Garages",
+    description: "Every garage is verified with credential checks, reviews, and repair history before joining.",
     link: "/cslb-check",
   },
 ];
@@ -32,10 +32,10 @@ const Features = () => {
     <section className="py-20 px-4 bg-secondary">
       <div className="max-w-6xl mx-auto">
         <h2 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-4">
-          Why homeowners love KisX
+          Why drivers love KisXCars
         </h2>
         <p className="text-center text-muted-foreground mb-14 max-w-xl mx-auto">
-          Built to make hiring contractors stress-free and transparent.
+          Built to make car repairs stress-free and transparent.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

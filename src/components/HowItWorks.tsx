@@ -1,16 +1,16 @@
-import { Video, Bot, ShieldCheck, Banknote, CheckCircle } from "lucide-react";
+import { Camera, Bot, ShieldCheck, Banknote, CheckCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const steps = [
   {
-    icon: Video,
-    title: "Describe Your Project",
-    description: "Record a short video walkthrough of what you need done. It's faster and clearer than typing.",
+    icon: Camera,
+    title: "Snap the Damage",
+    description: "Take a photo or short video of the scratch, dent, or issue. Faster and clearer than typing.",
   },
   {
     icon: Bot,
-    title: "Contractors Bid with AI",
-    description: "Qualified contractors use AI-assisted tools to send you accurate, competitive bids quickly.",
+    title: "AI Diagnoses & Quotes",
+    description: "Our AI assesses the damage and matches you with garages who send accurate, competitive quotes.",
   },
   {
     icon: ShieldCheck,
@@ -20,13 +20,13 @@ const steps = [
   },
   {
     icon: CheckCircle,
-    title: "Approve the Work",
-    description: "Review the finished project and release payment when you're satisfied.",
+    title: "Approve the Repair",
+    description: "Inspect the finished work and release payment when you're satisfied.",
   },
   {
     icon: Banknote,
     title: "Same-Day Pay",
-    description: "Contractors get paid the same day you approve — fast, fair, and reliable.",
+    description: "Garages get paid the same day you approve — fast, fair, and reliable.",
     link: "/same-day-payments",
   },
 ];
@@ -39,7 +39,7 @@ const HowItWorks = () => {
           How it works
         </h2>
         <p className="text-center text-muted-foreground mb-14 max-w-xl mx-auto">
-          From project description to payment — simple, transparent, and secure.
+          From damage photo to payment — simple, transparent, and secure.
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8">
