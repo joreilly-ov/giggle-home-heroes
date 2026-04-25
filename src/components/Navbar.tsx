@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import logoOnDark from "@/assets/kisxcars-logo-dark.png";
+import logoOnLight from "@/assets/kisxcars-logo-light.png";
 
 interface NavbarProps {
   variant?: "transparent" | "solid";
@@ -30,12 +32,35 @@ const Navbar = ({ variant = "transparent" }: NavbarProps) => {
   }, [user]);
 
   const isSolid = variant === "solid";
+  // Both navbar variants currently sit on a dark background (hero image / foreground),
+  // so the white-text logo is the correct contrast choice. The light-text variant is
+  // imported here so any future light-background placement can swap automatically.
+  const logoSrc = logoOnDark;
+  const logoSrcLight = logoOnLight;
 
   return (
     <nav className={`${isSolid ? "bg-foreground" : "absolute top-0 left-0 right-0"} z-20 px-4`}>
       <div className="max-w-7xl mx-auto flex items-center justify-between h-16">
-        <a href="/" className="text-2xl font-extrabold font-heading text-primary-foreground tracking-tight">
-          Kis<span className="text-accent">X</span>Cars
+        <a href="/" className="flex items-center" aria-label="KisXCars home">
+          {/* Dark-bg logo (white text) — shown on the standard nav */}
+          <img
+            src={logoSrc}
+            alt="KisXCars"
+            width={1536}
+            height={512}
+            className="h-8 w-auto block dark:hidden"
+          />
+          {/* Same white-text logo works in dark mode too (still on dark bg) */}
+          <img
+            src={logoSrc}
+            alt=""
+            aria-hidden="true"
+            width={1536}
+            height={512}
+            className="h-8 w-auto hidden dark:block"
+          />
+          {/* Preload the light variant so theme swaps are instant where used */}
+          <link rel="preload" as="image" href={logoSrcLight} />
         </a>
 
         {/* Desktop links */}
