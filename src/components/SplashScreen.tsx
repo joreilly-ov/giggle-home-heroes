@@ -41,11 +41,11 @@ const SplashScreen = ({ onDone }: SplashScreenProps) => {
       <div className="flex flex-col items-center gap-6">
         {/* Wordmark */}
         <h1 className="text-5xl font-extrabold font-heading text-primary-foreground tracking-tight">
-          Kis<span className="text-accent">X</span>
+          Kis<span className="text-accent">X</span>Cars
         </h1>
 
         <p className="text-primary-foreground/80 text-sm tracking-wide uppercase">
-          Home Services Marketplace
+          AI Vehicle Repair Marketplace
         </p>
 
         {/* Spinner */}
