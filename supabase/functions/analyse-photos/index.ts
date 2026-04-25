@@ -58,8 +58,7 @@ serve(async (req) => {
     });
   } catch (error: unknown) {
     console.error('Error proxying photo analysis:', error);
-    const msg = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(JSON.stringify({ error: msg }), {
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
