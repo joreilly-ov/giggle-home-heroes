@@ -200,7 +200,7 @@ export default function CslbCheck() {
   };
 
   useEffect(() => {
-    document.title = "CSLB Licence Check | KisX";
+    document.title = "CSLB Licence Check | KisXCars";
   }, []);
 
   return (

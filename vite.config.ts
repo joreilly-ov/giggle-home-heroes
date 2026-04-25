@@ -23,9 +23,9 @@ export default defineConfig(({ mode }) => ({
       },
       includeAssets: ["favicon.ico", "pwa-icon-192.png", "pwa-icon-512.png"],
       manifest: {
-        name: "KisX - Home Services Marketplace",
-        short_name: "KisX",
-        description: "KisX connects homeowners with trusted local contractors",
+        name: "KisXCars - AI Vehicle Repair Marketplace",
+        short_name: "KisXCars",
+        description: "KisXCars connects drivers with trusted local garages and bodyshops",
         theme_color: "#0891b2",
         background_color: "#ffffff",
         display: "standalone",

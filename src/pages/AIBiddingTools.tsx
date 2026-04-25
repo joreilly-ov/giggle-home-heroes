@@ -137,7 +137,7 @@ const AIBiddingTools = () => (
           <span className="text-primary">Bid with confidence.</span>
         </h1>
         <p className="text-primary-foreground/70 text-lg max-w-xl mx-auto mb-8 leading-relaxed">
-          Every job on KisX arrives pre-diagnosed by AI. Know the issue, the
+          Every job on KisXCars arrives pre-diagnosed by AI. Know the issue, the
           urgency, and the materials before you write a single number. Then use
           the built-in tools to build a quote that wins.
         </p>

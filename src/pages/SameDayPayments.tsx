@@ -119,7 +119,7 @@ const trustItems = [
   },
   {
     label: "PCI DSS compliant",
-    detail: "Card data is handled entirely by Stripe — KisX never stores payment details",
+    detail: "Card data is handled entirely by Stripe — KisXCars never stores payment details",
   },
 ];
 
@@ -139,7 +139,7 @@ const SameDayPayments = () => (
           <span className="text-primary">Every time.</span>
         </h1>
         <p className="text-primary-foreground/70 text-lg max-w-xl mx-auto mb-8 leading-relaxed">
-          KisX combines Stripe's world-class payment infrastructure with escrow
+          KisXCars combines Stripe's world-class payment infrastructure with escrow
           protection — so homeowners only pay when they're satisfied, and
           contractors never wait weeks for their money.
         </p>

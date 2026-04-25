@@ -39,7 +39,7 @@ export function NotificationSettings({ role = "contractor" }: NotificationSettin
           <div className="flex items-start gap-3 bg-secondary/60 border border-border rounded-xl p-4 text-sm text-muted-foreground">
             <Smartphone className="w-4 h-4 shrink-0 mt-0.5 text-primary" />
             <p>
-              To receive push notifications on iPhone, add KisX to your home screen first: tap the
+              To receive push notifications on iPhone, add KisXCars to your home screen first: tap the
               Share button in Safari, then choose <strong>Add to Home Screen</strong>.
             </p>
           </div>
