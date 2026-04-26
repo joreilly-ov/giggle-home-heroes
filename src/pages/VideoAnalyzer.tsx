@@ -31,6 +31,7 @@ const VideoAnalyzer = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { categories } = useVertical();
 
   const [file, setFile] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
@@ -235,9 +236,10 @@ const VideoAnalyzer = () => {
                       <SelectValue placeholder="Auto-detect (optional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      {TRADE_CATEGORIES.map((cat) => (
-                        <SelectItem key={cat.value} value={cat.value || "_auto"}>
-                          {cat.label}
+                      <SelectItem value="_auto">Auto-detect (optional)</SelectItem>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat.value} value={cat.value}>
+                          {cat.icon ? `${cat.icon} ` : ""}{cat.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
