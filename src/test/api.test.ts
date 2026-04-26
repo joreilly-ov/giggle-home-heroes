@@ -11,7 +11,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const BASE = "https://stable-gig-374485351183.europe-west1.run.app";
+const BASE = "https://stable-gig-cars-374485351183.europe-west1.run.app";
 
 // ─── Mock Supabase client ────────────────────────────────────────────────────
 

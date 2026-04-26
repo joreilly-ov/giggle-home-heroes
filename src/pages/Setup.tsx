@@ -2,26 +2,17 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useVertical } from "@/contexts/VerticalContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 
-const TRADE_CATEGORIES = [
-  { label: "Plumbing", icon: "🔧" },
-  { label: "Electrical", icon: "⚡" },
-  { label: "Structural", icon: "🏗️" },
-  { label: "Damp", icon: "💧" },
-  { label: "Roofing", icon: "🏠" },
-  { label: "General", icon: "🔨" },
-  { label: "HVAC", icon: "❄️" },
-  { label: "Painting", icon: "🎨" },
-];
-
 const Setup = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { categories } = useVertical();
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
 
@@ -168,9 +159,9 @@ const Setup = () => {
               <p className="text-sm text-muted-foreground mb-6">Select the repair categories you care most about.</p>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-                {TRADE_CATEGORIES.map((cat) => (
+                {categories.map((cat) => (
                   <button
-                    key={cat.label}
+                    key={cat.value}
                     onClick={() => toggleInterest(cat.label)}
                     className={`flex items-center gap-2 px-4 py-3 rounded-lg border text-sm font-medium transition-all ${
                       interests.includes(cat.label)
@@ -178,7 +169,7 @@ const Setup = () => {
                         : "border-border bg-card text-foreground hover:border-primary/50"
                     }`}
                   >
-                    <span>{cat.icon}</span>
+                    {cat.icon && <span>{cat.icon}</span>}
                     {cat.label}
                   </button>
                 ))}

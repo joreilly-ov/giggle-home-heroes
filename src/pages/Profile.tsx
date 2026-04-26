@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useVertical } from "@/contexts/VerticalContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,21 +10,11 @@ import { Save, Loader2, MapPin, CheckCircle2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { NotificationSettings } from "@/components/contractor/NotificationSettings";
 
-const INTEREST_OPTIONS = [
-  { label: "Plumbing", icon: "🔧" },
-  { label: "Electrical", icon: "⚡" },
-  { label: "Structural", icon: "🏗️" },
-  { label: "Damp", icon: "💧" },
-  { label: "Roofing", icon: "🏠" },
-  { label: "General", icon: "🔨" },
-  { label: "HVAC", icon: "❄️" },
-  { label: "Painting", icon: "🎨" },
-];
-
 const Profile = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { categories } = useVertical();
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -229,9 +220,9 @@ const Profile = () => {
           <p className="text-sm text-muted-foreground mb-4">Select the repair categories you care about.</p>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {INTEREST_OPTIONS.map((cat) => (
+            {categories.map((cat) => (
               <button
-                key={cat.label}
+                key={cat.value}
                 onClick={() => toggleInterest(cat.label)}
                 className={`flex items-center gap-2 px-4 py-3 rounded-lg border text-sm font-medium transition-all ${
                   interests.includes(cat.label)
@@ -239,7 +230,7 @@ const Profile = () => {
                     : "border-border bg-card text-foreground hover:border-primary/50"
                 }`}
               >
-                <span>{cat.icon}</span>
+                {cat.icon && <span>{cat.icon}</span>}
                 {cat.label}
               </button>
             ))}

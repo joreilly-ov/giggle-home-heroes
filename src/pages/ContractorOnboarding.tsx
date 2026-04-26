@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useVertical } from "@/contexts/VerticalContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,13 +14,6 @@ import {
   ArrowLeft,
   Check,
   Wrench,
-  Zap,
-  Droplets,
-  Home,
-  Paintbrush,
-  Hammer,
-  Thermometer,
-  HardHat,
   MapPin,
   Loader2,
   ShieldCheck,
@@ -28,21 +22,11 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-const EXPERTISE_OPTIONS = [
-  { label: "Plumbing", icon: Droplets, description: "Pipes, fixtures & water systems" },
-  { label: "Electrical", icon: Zap, description: "Wiring, panels & lighting" },
-  { label: "Structural", icon: HardHat, description: "Foundations, framing & load-bearing" },
-  { label: "Damp & Waterproofing", icon: Droplets, description: "Moisture control & sealing" },
-  { label: "Roofing", icon: Home, description: "Shingles, flashing & gutters" },
-  { label: "General Contracting", icon: Hammer, description: "Full-service builds & renovations" },
-  { label: "HVAC", icon: Thermometer, description: "Heating, cooling & ventilation" },
-  { label: "Painting & Finishing", icon: Paintbrush, description: "Interior & exterior finishes" },
-];
-
 const ContractorOnboarding = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { categories, providerLabelTitle } = useVertical();
   const [step, setStep] = useState(1);
 
   // Redirect unauthenticated visitors to sign in, then return here
@@ -222,7 +206,7 @@ const ContractorOnboarding = () => {
           <div className="flex items-center gap-2 justify-center mt-3">
             <Wrench className="w-4 h-4 text-primary" />
             <span className="text-sm font-semibold text-primary uppercase tracking-widest">
-              Contractor Sign Up
+              {providerLabelTitle} Sign Up
             </span>
           </div>
         </div>
@@ -323,7 +307,7 @@ const ContractorOnboarding = () => {
                       id="businessName"
                       value={businessName}
                       onChange={(e) => setBusinessName(e.target.value)}
-                      placeholder="e.g. Smith & Sons Plumbing"
+                      placeholder="e.g. AutoFix Garage"
                       className="mt-1.5"
                     />
                   </div>
@@ -385,11 +369,11 @@ const ContractorOnboarding = () => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  {EXPERTISE_OPTIONS.map((opt) => {
+                  {categories.map((opt) => {
                     const selected = expertise.includes(opt.label);
                     return (
                       <button
-                        key={opt.label}
+                        key={opt.value}
                         onClick={() => toggleExpertise(opt.label)}
                         className={`relative flex flex-col items-start gap-1.5 p-4 rounded-xl border-2 text-left transition-all duration-150 ${
                           selected
@@ -402,9 +386,12 @@ const ContractorOnboarding = () => {
                             <Check className="w-3 h-3 text-primary-foreground" />
                           </div>
                         )}
-                        <opt.icon className={`w-5 h-5 ${selected ? "text-primary" : "text-muted-foreground"}`} />
+                        {opt.icon ? (
+                          <span className="text-2xl leading-none" aria-hidden>{opt.icon}</span>
+                        ) : (
+                          <Wrench className={`w-5 h-5 ${selected ? "text-primary" : "text-muted-foreground"}`} />
+                        )}
                         <span className="text-sm font-semibold text-foreground">{opt.label}</span>
-                        <span className="text-xs text-muted-foreground leading-tight">{opt.description}</span>
                       </button>
                     );
                   })}

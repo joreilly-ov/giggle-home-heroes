@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, Video, ArrowLeft, CheckCircle, AlertTriangle, Loader2, X, Wrench, Package } from "lucide-react";
-import { TRADE_CATEGORIES } from "@/components/photo-analyzer/types";
+import { useVertical } from "@/contexts/VerticalContext";
 import TaskBreakdown from "@/components/photo-analyzer/TaskBreakdown";
 import { ClarificationsStep } from "@/components/post-project/ClarificationsStep";
 import { RfpReviewStep } from "@/components/post-project/RfpReviewStep";
@@ -67,6 +67,7 @@ const PostProject = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { categories } = useVertical();
 
   const [file, setFile] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
@@ -317,9 +318,10 @@ const PostProject = () => {
                       <SelectValue placeholder="Auto-detect (optional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      {TRADE_CATEGORIES.map((cat) => (
-                        <SelectItem key={cat.value || "_auto"} value={cat.value || "_auto"}>
-                          {cat.label}
+                      <SelectItem value="_auto">Auto-detect (optional)</SelectItem>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat.value} value={cat.value}>
+                          {cat.icon ? `${cat.icon} ` : ""}{cat.label}
                         </SelectItem>
                       ))}
                     </SelectContent>

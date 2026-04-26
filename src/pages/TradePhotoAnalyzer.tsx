@@ -10,7 +10,8 @@ import { ArrowLeft, Upload, Camera, Loader2, AlertTriangle, ImageIcon } from "lu
 import Navbar from "@/components/Navbar";
 import PhotoGrid from "@/components/photo-analyzer/PhotoGrid";
 import AnalysisResults from "@/components/photo-analyzer/AnalysisResults";
-import { PhotoFile, AnalysisResult, TRADE_CATEGORIES, MAX_PHOTOS, MAX_FILE_SIZE, ACCEPTED_TYPES } from "@/components/photo-analyzer/types";
+import { PhotoFile, AnalysisResult, MAX_PHOTOS, MAX_FILE_SIZE, ACCEPTED_TYPES } from "@/components/photo-analyzer/types";
+import { useVertical } from "@/contexts/VerticalContext";
 
 
 const fileToBase64 = (file: File): Promise<string> =>
@@ -26,6 +27,7 @@ const TradePhotoAnalyzer = () => {
   const { toast } = useToast();
   const { user, loading } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { categories } = useVertical();
 
   const [photos, setPhotos] = useState<PhotoFile[]>([]);
   const [description, setDescription] = useState("");
@@ -209,9 +211,10 @@ const TradePhotoAnalyzer = () => {
                     <SelectValue placeholder="Auto-detect (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    {TRADE_CATEGORIES.map((cat) => (
-                      <SelectItem key={cat.value} value={cat.value || "_auto"}>
-                        {cat.label}
+                    <SelectItem value="_auto">Auto-detect (optional)</SelectItem>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.value} value={cat.value}>
+                        {cat.icon ? `${cat.icon} ` : ""}{cat.label}
                       </SelectItem>
                     ))}
                   </SelectContent>

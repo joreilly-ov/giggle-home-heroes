@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 
-const BASE = "https://stable-gig-374485351183.europe-west1.run.app";
+const BASE = "https://stable-gig-cars-374485351183.europe-west1.run.app";
 
 async function authHeaders(): Promise<HeadersInit> {
   const { data } = await supabase.auth.getSession();
@@ -39,6 +39,19 @@ async function publicRequest<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface VerticalCategory {
+  value: string;
+  label: string;
+  icon?: string;
+}
+
+export interface VerticalConfig {
+  app_title: string;
+  owner_label: string;
+  provider_label: string;
+  categories: VerticalCategory[];
+}
 
 export type JobStatus =
   | "draft"
@@ -160,6 +173,10 @@ export interface Bid {
 // ─── API client ───────────────────────────────────────────────────────────────
 
 export const api = {
+  vertical: {
+    get: () => publicRequest<VerticalConfig>("/api/vertical"),
+  },
+
   jobs: {
     create: (analysisResult: Record<string, unknown>) =>
       request<Job>("/jobs", {
