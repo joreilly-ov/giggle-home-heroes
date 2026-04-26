@@ -24,16 +24,6 @@ export type AnalysisResult = {
   };
 };
 
-export const TRADE_CATEGORIES = [
-  { value: "", label: "Auto-detect (optional)" },
-  { value: "plumbing", label: "Plumbing" },
-  { value: "electrical", label: "Electrical" },
-  { value: "structural", label: "Structural" },
-  { value: "damp", label: "Damp" },
-  { value: "roofing", label: "Roofing" },
-  { value: "general", label: "General" },
-] as const;
-
 export const MAX_PHOTOS = 5;
 export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 export const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic"];
