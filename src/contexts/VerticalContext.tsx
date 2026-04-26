@@ -27,12 +27,20 @@ interface VerticalContextValue extends VerticalConfig {
   ownerLabelTitle: string;
   /** Look up a category by its `value`. */
   findCategory: (value: string) => VerticalCategory | undefined;
+  /**
+   * Return an icon glyph for a category. Falls back to a neutral wrench
+   * (🔧) when the category has no icon, so pickers always render something.
+   */
+  categoryIcon: (cat: Pick<VerticalCategory, "icon"> | string | undefined) => string;
 }
 
 const VerticalContext = createContext<VerticalContextValue | null>(null);
 
 const titleCase = (s: string) =>
   s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+
+/** Neutral fallback glyph used when a category lacks its own icon. */
+export const FALLBACK_CATEGORY_ICON = "🔧";
 
 export function VerticalProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<VerticalConfig>(FALLBACK);
@@ -75,6 +83,16 @@ export function VerticalProvider({ children }: { children: ReactNode }) {
     providerLabelTitle: titleCase(config.provider_label),
     ownerLabelTitle: titleCase(config.owner_label),
     findCategory: (v: string) => config.categories.find((c) => c.value === v),
+    categoryIcon: (cat) => {
+      if (!cat) return FALLBACK_CATEGORY_ICON;
+      if (typeof cat === "string") {
+        return (
+          config.categories.find((c) => c.value === cat)?.icon ||
+          FALLBACK_CATEGORY_ICON
+        );
+      }
+      return cat.icon || FALLBACK_CATEGORY_ICON;
+    },
   };
 
   return (
