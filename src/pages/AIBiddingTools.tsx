@@ -27,43 +27,43 @@ const coreFeatures = [
     icon: Search,
     title: "AI-matched job feed",
     description:
-      "Jobs are surfaced to you based on your declared expertise. Plumber? You see plumbing jobs first. The feed re-ranks automatically so the most relevant work is always at the top — no scrolling through irrelevant listings.",
+      "Jobs are surfaced to you based on your declared expertise. Bodywork specialist? You see bodywork jobs first. The feed re-ranks automatically so the most relevant work is always at the top — no scrolling through irrelevant listings.",
     detail: "Matched using your expertise categories. Update them any time in Profile Settings.",
   },
   {
     icon: Bot,
     title: "AI job diagnosis in every listing",
     description:
-      "Every job card shows you what the AI already knows: the likely issue, urgency level, materials probably involved, and the location in the home. You're briefed before you even open the job.",
-    detail: "Pulled from the homeowner's video analysis — the same AI that classified the project.",
+      "Every job card shows you what the AI already knows: the likely fault, urgency level, parts probably involved, and the affected area of the vehicle. You're briefed before you even open the job.",
+    detail: "Pulled from the vehicle owner's photo and video analysis — the same AI that classified the repair.",
   },
   {
     icon: ListChecks,
     title: "Task breakdown generator",
     description:
-      "Before you bid, generate a step-by-step task list for the job powered by Google Gemini. Each task comes with a difficulty rating (easy / medium / hard) and a time estimate in minutes. Total time calculated automatically.",
-    detail: "Runs in seconds. Use it to sanity-check your quote or share it as part of your note to the homeowner.",
+      "Before you quote, generate a step-by-step task list for the repair powered by Google Gemini. Each task comes with a difficulty rating (easy / medium / hard) and a time estimate in minutes. Total time calculated automatically.",
+    detail: "Runs in seconds. Use it to sanity-check your quote or share it as part of your note to the vehicle owner.",
   },
   {
     icon: FileText,
     title: "Instant RFP documents",
     description:
-      "Turn any accepted job into a formal Request for Proposal document — executive summary, scope of work, cost estimate range, and permit notes — all AI-generated from the job details.",
-    detail: "Useful for larger jobs where a written scope helps manage expectations before work begins.",
+      "Turn any accepted job into a formal Request for Proposal document — executive summary, scope of work, parts and labour estimate range, and inspection notes — all AI-generated from the job details.",
+    detail: "Useful for larger repairs where a written scope helps manage expectations before work begins.",
   },
   {
     icon: MessageSquare,
     title: "Q&A before you commit",
     description:
-      "Ask the homeowner clarifying questions directly from the job listing — before you put in a number. The AI suggests questions to ask based on what it flagged as ambiguous about the project.",
-    detail: "Homeowners are notified immediately. Answered questions are visible to all bidding contractors.",
+      "Ask the vehicle owner clarifying questions directly from the job listing — before you put in a number. The AI suggests questions to ask based on what it flagged as ambiguous about the repair.",
+    detail: "Vehicle owners are notified immediately. Answered questions are visible to all quoting garages.",
   },
   {
     icon: TrendingUp,
-    title: "Bid pipeline dashboard",
+    title: "Quote pipeline dashboard",
     description:
-      "Track every bid you've submitted: how many are open, your running win rate, and your total pipeline value in pounds. When a bid is accepted, milestones appear inline — no separate screen to find.",
-    detail: "Pipeline includes pending + accepted bids. Rejected bids are excluded from the value figure.",
+      "Track every quote you've submitted: how many are open, your running win rate, and your total pipeline value in pounds. When a quote is accepted, milestones appear inline — no separate screen to find.",
+    detail: "Pipeline includes pending + accepted quotes. Rejected quotes are excluded from the value figure.",
   },
 ];
 
@@ -80,35 +80,35 @@ const workflowSteps = [
     step: "2",
     title: "Read the AI diagnosis",
     description:
-      "Each job shows the AI's read of the issue: description, urgency, materials, and location in home. You know what you're walking into before you bid.",
+      "Each job shows the AI's read of the fault: description, urgency, parts, and affected area of the vehicle. You know what you're walking into before you quote.",
   },
   {
     icon: ListChecks,
     step: "3",
     title: "Generate a task breakdown",
     description:
-      "Hit 'Generate Task List' inside the job. Gemini returns an ordered list of tasks, each with difficulty and time. Use it to build an accurate quote.",
+      "Hit 'Generate Task List' inside the job. Gemini returns an ordered list of tasks, each with difficulty and time. Use it to build an accurate quote with parts and labour.",
   },
   {
     icon: MessageSquare,
     step: "4",
     title: "Ask questions if needed",
     description:
-      "Not sure about access, material spec, or scope? Ask directly in the listing. The AI flags common questions to help you spot what you might be missing.",
+      "Not sure about the make, model, mileage, or scope? Ask directly in the listing. The AI flags common questions to help you spot what you might be missing.",
   },
   {
     icon: Gavel,
     step: "5",
-    title: "Submit your bid",
+    title: "Submit your quote",
     description:
-      "Enter your quote in pounds and an optional note to the homeowner. Homeowners compare bids with your profile and review scores visible alongside.",
+      "Enter your price in pounds and an optional note to the vehicle owner. Owners compare quotes with your garage profile and review scores visible alongside.",
   },
   {
     icon: Camera,
     step: "6",
     title: "Track milestones on the job",
     description:
-      "Once accepted, break the project into milestones, upload completion photos, and optionally run AI analysis on them. Homeowners approve each stage before the next begins.",
+      "Once accepted, break the repair into milestones, upload progress photos of the car, and optionally run AI analysis on them. Vehicle owners approve each stage before the next begins.",
   },
 ];
 
@@ -130,20 +130,20 @@ const AIBiddingTools = () => (
       <div className="max-w-3xl mx-auto text-center">
         <div className="inline-flex items-center gap-2 bg-primary/20 text-primary px-4 py-1.5 rounded-full text-sm font-semibold mb-6">
           <Bot className="w-4 h-4" />
-          Built for contractors, powered by AI
+          Built for garages, powered by AI
         </div>
         <h1 className="text-4xl md:text-5xl font-extrabold font-heading leading-tight mb-5">
           Stop guessing.<br />
-          <span className="text-primary">Bid with confidence.</span>
+          <span className="text-primary">Quote with confidence.</span>
         </h1>
         <p className="text-primary-foreground/70 text-lg max-w-xl mx-auto mb-8 leading-relaxed">
-          Every job on KisXCars arrives pre-diagnosed by AI. Know the issue, the
-          urgency, and the materials before you write a single number. Then use
+          Every job on KisXCars arrives pre-diagnosed by AI. Know the fault, the
+          urgency, and the parts before you write a single number. Then use
           the built-in tools to build a quote that wins.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Button asChild size="lg" className="h-12 px-8">
-            <Link to="/contractor/signup">Start bidding free</Link>
+            <Link to="/contractor/signup">Start quoting free</Link>
           </Button>
           <Button
             asChild
@@ -174,10 +174,10 @@ const AIBiddingTools = () => (
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-14">
           <h2 className="text-3xl font-extrabold font-heading text-foreground mb-3">
-            Every tool you need to bid smarter
+            Every tool you need to quote smarter
           </h2>
           <p className="text-muted-foreground max-w-xl mx-auto">
-            These aren't future features — they're live in the contractor dashboard today.
+            These aren't future features — they're live in the garage dashboard today.
           </p>
         </div>
 
@@ -208,7 +208,7 @@ const AIBiddingTools = () => (
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-14">
           <h2 className="text-3xl font-extrabold font-heading text-foreground mb-3">
-            From job posted to bid submitted
+            From job posted to quote submitted
           </h2>
           <p className="text-muted-foreground max-w-xl mx-auto">
             The full workflow, start to finish — AI at every step.
@@ -251,11 +251,11 @@ const AIBiddingTools = () => (
           The task breakdown changes how you quote
         </h2>
         <p className="text-primary-foreground/75 mb-8 max-w-xl mx-auto leading-relaxed">
-          Most contractors quote from memory. With the AI task breakdown, you get
+          Most garages quote from memory. With the AI task breakdown, you get
           a structured, ordered list — step 1 through to completion — with each
           task rated easy, medium, or hard, and a time estimate in minutes. Total
           hours calculated automatically. Use it to check your gut, justify your
-          price, or walk the homeowner through exactly what's involved.
+          price, or walk the vehicle owner through exactly what's involved.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           {[
@@ -286,29 +286,29 @@ const AIBiddingTools = () => (
     <section className="py-20 px-4 bg-background">
       <div className="max-w-3xl mx-auto text-center">
         <h2 className="text-3xl font-extrabold font-heading text-foreground mb-4">
-          Win the bid. Get paid the same day.
+          Win the quote. Get paid the same day.
         </h2>
         <p className="text-muted-foreground mb-10 max-w-xl mx-auto leading-relaxed">
-          AI bidding tools get you more accepted bids. Stripe Connect gets your
-          money to your bank account the same day the homeowner approves the work.
-          No invoices, no chasing — the whole job is managed end to end.
+          AI quoting tools get you more accepted jobs. Stripe Connect gets your
+          money to your bank account the same day the vehicle owner approves the work.
+          No invoices, no chasing — the whole repair is managed end to end.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10 text-left">
           {[
             {
               icon: Gavel,
-              title: "Smarter bids",
-              body: "AI-briefed on the job, task breakdown in hand, questions answered — you bid with more information than your competition.",
+              title: "Smarter quotes",
+              body: "AI-briefed on the job, task breakdown in hand, questions answered — you quote with more information than your competition.",
             },
             {
               icon: PoundSterling,
               title: "Guaranteed payment",
-              body: "Funds are held in escrow before you start. The money is already there when you finish — you just need the homeowner's approval.",
+              body: "Funds are held in escrow before you start. The money is already there when you finish — you just need the vehicle owner's approval.",
             },
             {
               icon: Users,
               title: "Build your reputation",
-              body: "Completed jobs generate reviews on your profile. Quality, communication, and cleanliness — the scores that win you the next job.",
+              body: "Completed repairs generate reviews on your garage profile. Quality, communication, and cleanliness — the scores that win you the next job.",
             },
           ].map((item) => (
             <div key={item.title} className="bg-card rounded-xl p-6 border border-border shadow-sm">
@@ -323,7 +323,7 @@ const AIBiddingTools = () => (
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Button asChild size="lg" className="h-12 px-8">
             <Link to="/contractor/signup">
-              Create your contractor account <ArrowRight className="w-4 h-4 ml-1" />
+              Create your garage account <ArrowRight className="w-4 h-4 ml-1" />
             </Link>
           </Button>
           <Button asChild variant="outline" size="lg" className="h-12 px-8">
