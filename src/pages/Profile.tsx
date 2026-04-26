@@ -14,7 +14,7 @@ const Profile = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { categories } = useVertical();
+  const { categories, categoryIcon } = useVertical();
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -230,7 +230,7 @@ const Profile = () => {
                     : "border-border bg-card text-foreground hover:border-primary/50"
                 }`}
               >
-                {cat.icon && <span>{cat.icon}</span>}
+                <span aria-hidden>{categoryIcon(cat)}</span>
                 {cat.label}
               </button>
             ))}
