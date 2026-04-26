@@ -19,7 +19,7 @@
 - Camera access for video recording must be requested gracefully — iOS requires HTTPS (satisfied in production)
 - The video upload flow (`PostProject.tsx`) calls Cloud Run directly to avoid edge function payload/timeout limits
 - **Capacitor dev mode:** `capacitor.config.ts` has a `server.url` pointing to `http://192.168.0.152:5173` (local WiFi dev). **Remove the `server` block before building a release APK/IPA** — otherwise the app tries to reach that local network.
-- **Capacitor branding:** `android/` still uses `com.gigglehomepros.app` / "Giggle Home Pros" — needs updating to KisX before Play Store submission.
+- **Capacitor branding:** `capacitor.config.ts` uses `com.kisxcars.app` / "KisXCars". The `android/` native project folder may still reference the old `com.gigglehomepros.app` bundle ID — verify and sync before Play Store submission.
 - **Push notifications:** implemented via Web Push API (`src/hooks/use-push-notifications.ts`). VAPID key fetched from Cloud Run (`/notifications/vapid-public-key`). iOS only works when installed as a PWA (not in Safari). Shown in `NotificationSettings` for both roles.
 
 ## User role detection
@@ -58,9 +58,11 @@ Always check contractor first (see `Auth.tsx` redirect logic).
 | `/ai-bidding-tools` | AIBiddingTools | AI bidding tools marketing page (fully built) |
 | `/same-day-payments` | SameDayPayments | Same-day payments marketing page (fully built) |
 | `/how-escrow-works` | HowEscrowWorks | Escrow explainer — placeholder, not yet built |
+| `/cslb-check` | CslbCheck | CSLB contractor license verification lookup tool |
 | `/about` | About | About page |
 | `/contact` | Contact | Contact page |
 | `/privacy` | Privacy | Privacy policy |
+| `/terms` | Terms | Terms of service |
 | `*` | NotFound | 404 catch-all |
 
 ## Key patterns
@@ -139,6 +141,15 @@ All job and bid operations go through the Cloud Run backend (`https://stable-gig
 | `POST` | `/notifications/subscribe` | Both | Body: `{ endpoint, p256dh, auth_key }` |
 | `DELETE` | `/notifications/subscribe` | Both | Body: `{ endpoint, p256dh, auth_key }` |
 
+### Contractor Documents
+
+| Method | Path | Who can call | Notes |
+|--------|------|-------------|-------|
+| `POST` | `/contractors/me/documents` | Contractor | Body: `{ document_type, file_name, file_source }`; types: `insurance \| licence \| certification \| other` |
+| `GET` | `/contractors/me/documents` | Contractor | Lists own documents with verification status |
+| `GET` | `/contractors/:contractorId/documents` | Public | Lists verified public documents for a contractor |
+| `DELETE` | `/contractors/me/documents/:docId` | Contractor | Removes a document |
+
 **Job status lifecycle:** `draft → open → awarded → in_progress → completed | cancelled`
 
 **Frontend components:**
@@ -161,6 +172,12 @@ All job and bid operations go through the Cloud Run backend (`https://stable-gig
 - `src/components/photo-analyzer/AnalysisResults.tsx` — displays photo analysis output
 - `src/components/photo-analyzer/PhotoGrid.tsx` — multi-photo grid for analysis
 - `src/components/contractor/NotificationSettings.tsx` — Web Push opt-in/out, role-aware description
+- `src/components/contractor/ContractorDocuments.tsx` — upload/manage insurance, licence, and certification documents
+- `src/components/contractor/VerifiedDocsBadge.tsx` — badge showing document verification status
+- `src/components/contractor/CslbStatusBadge.tsx` — displays CSLB licence verification status
+- `src/components/contractor/ContractorSidebar.tsx` — navigation sidebar for contractor dashboard
+- `src/components/customer/CustomerSidebar.tsx` — navigation sidebar for customer dashboard
+- `src/components/SplashScreen.tsx` — startup splash screen shown briefly before the app renders
 - `src/hooks/use-push-notifications.ts` — VAPID subscription lifecycle hook
 
 ## Supabase edge functions
@@ -201,6 +218,7 @@ Tests live in `src/test/`. Run with `npm run test`.
 | `api.test.ts` | Auth header injection/omission, URL construction, error handling, HTTP methods, request body serialisation |
 | `ReviewMediator.test.tsx` | Escrow gate (all locked states, both unlock states), submit button state, validation, field presence, live overall score |
 | `auth-routing.test.tsx` | Post-login redirects: contractor → `/contractor/profile`, complete profile → `/dashboard`, incomplete → `/profile`, `?next=` param, open-redirect guard |
+| `seed-rpc-permissions.test.ts` | Verifies that `seed_insert_contractor` and `seed_insert_review` RPCs are not callable by anon/authenticated roles |
 | `example.test.ts` | Framework smoke test (placeholder) |
 
 ## Database schema
@@ -225,6 +243,12 @@ Migrations live in `supabase/migrations/`. When changing the schema, add a new `
 | `20260316170000_security-fixes.sql` | Enable RLS on `profiles` with user-level policies |
 | `20260318000000_007_quality_rating_private_feedback.sql` | `rating_accuracy` → `rating_quality`; add `rating_cleanliness`; rebuild `GENERATED overall`; add `private_feedback TEXT`; create `visible_reviews` view |
 | `20260319161910_46d50244-…` | Allow authenticated users to browse contractors publicly |
+| `20260320183159_c79a76de-…` | Add `status`, `trade_category`, `description`, `postcode`, `city`, `state` to `videos`; RLS policies for contractors reading posted videos |
+| `20260320183841_d22ff758-…` | Create `reviews` table with `GENERATED overall` column, RLS, and `visible_reviews` view |
+| `20260320183905_06bda3f5-…` | Fix `visible_reviews` security definer (set `security_invoker = on`) |
+| `20260320184051_034f0f70-…` | Seed mock review data for existing contractors |
+| `20260330190335_d8eb5044-…` | Tighten `reviews` RLS (owner-scoped SELECT); add `usage_log` RLS policies; fix `set_updated_at` function search_path |
+| `20260425120900_revoke_seed_rpc_execute.sql` | Revoke EXECUTE on `seed_insert_contractor` and `seed_insert_review` from public/anon/authenticated (service_role only) |
 
 ## Review system
 
@@ -268,7 +292,7 @@ Admins read it directly from `reviews` via service role.
 - `analyse-breakdown` uses a Lovable/Gemini API key (`LOVABLE_API_KEY`) — must be set in edge function secrets
 - The Supabase `videos` table still exists but `MyProjects.tsx` no longer queries it — the customer dashboard now fetches jobs from `GET /jobs` (Cloud Run). The table is effectively superseded by the jobs API for project listing.
 - `MyProjects.tsx` uses `api.jobs.get(id)` to re-fetch a single job after status transitions — the job must exist in the Cloud Run jobs table, not just in `videos`
-- **Capacitor config** (`capacitor.config.ts`) still has `appId: 'com.gigglehomepros.app'` and `appName: 'Giggle Home Pros'` — must be updated to KisX before Play Store / App Store submission
+- **Capacitor config** (`capacitor.config.ts`) has `appId: 'com.kisxcars.app'` and `appName: 'KisXCars'` — already updated, verify this matches Play Store / App Store listings before release
 - **Capacitor dev server** — the `server.url` block points to a local WiFi address for live-reload development; remove it entirely before building a release APK or IPA
 - **iOS Capacitor** not yet set up — requires a Mac with Xcode; run `npm install @capacitor/ios && npx cap add ios` to initialise
 - **Push notifications on iOS** only work when the app is installed as a PWA from Safari, not from within the browser tab
