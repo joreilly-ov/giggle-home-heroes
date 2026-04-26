@@ -206,7 +206,7 @@ const ContractorOnboarding = () => {
           <div className="flex items-center gap-2 justify-center mt-3">
             <Wrench className="w-4 h-4 text-primary" />
             <span className="text-sm font-semibold text-primary uppercase tracking-widest">
-              Contractor Sign Up
+              {providerLabelTitle} Sign Up
             </span>
           </div>
         </div>
@@ -307,7 +307,7 @@ const ContractorOnboarding = () => {
                       id="businessName"
                       value={businessName}
                       onChange={(e) => setBusinessName(e.target.value)}
-                      placeholder="e.g. Smith & Sons Plumbing"
+                      placeholder="e.g. AutoFix Garage"
                       className="mt-1.5"
                     />
                   </div>

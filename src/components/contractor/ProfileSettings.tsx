@@ -162,7 +162,7 @@ export function ProfileSettings() {
               value={businessName}
               onChange={(e) => setBusinessName(e.target.value)}
               className="mt-1.5 bg-background"
-              placeholder="e.g. Smith Plumbing LLC"
+              placeholder="e.g. AutoFix Garage"
             />
           </div>
 
