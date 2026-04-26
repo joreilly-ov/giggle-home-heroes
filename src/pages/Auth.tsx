@@ -106,15 +106,95 @@ const Auth = () => {
     }
   };
 
-  const handleTwitterSignIn = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "twitter",
-      options: { redirectTo: window.location.origin + "/auth" },
-    });
-    if (error) {
-      toast({ title: "Twitter sign in failed", description: error.message, variant: "destructive" });
+  const mapTwitterOAuthError = (error: { message?: string; status?: number; name?: string }) => {
+    const raw = (error?.message || "").toLowerCase();
+    const status = error?.status;
+
+    if (raw.includes("provider is not enabled") || raw.includes("unsupported provider") || raw.includes("provider not enabled")) {
+      return {
+        title: "Twitter sign-in unavailable",
+        description: "Twitter login isn't enabled yet. Please try Google or email instead.",
+      };
+    }
+    if (raw.includes("popup") && raw.includes("closed")) {
+      return {
+        title: "Sign-in cancelled",
+        description: "The Twitter sign-in window was closed before finishing. Please try again.",
+      };
+    }
+    if (raw.includes("popup") && raw.includes("block")) {
+      return {
+        title: "Popup blocked",
+        description: "Your browser blocked the Twitter sign-in popup. Allow popups for this site and retry.",
+      };
+    }
+    if (raw.includes("redirect") && raw.includes("not allowed")) {
+      return {
+        title: "Redirect not allowed",
+        description: "This site isn't on Twitter's allowed redirect list. Please contact support.",
+      };
+    }
+    if (raw.includes("network") || raw.includes("failed to fetch") || error?.name === "AuthRetryableFetchError") {
+      return {
+        title: "Network error",
+        description: "We couldn't reach Twitter. Check your connection and try again.",
+      };
+    }
+    if (raw.includes("rate limit") || status === 429) {
+      return {
+        title: "Too many attempts",
+        description: "You've tried signing in too many times. Please wait a minute and try again.",
+      };
+    }
+    if (raw.includes("email") && raw.includes("already")) {
+      return {
+        title: "Email already in use",
+        description: "An account with this email already exists. Try signing in with that method instead.",
+      };
+    }
+    if (raw.includes("access_denied") || raw.includes("denied")) {
+      return {
+        title: "Permission denied",
+        description: "You declined to share your Twitter account. Approve access to continue.",
+      };
+    }
+    if (status && status >= 500) {
+      return {
+        title: "Twitter is having issues",
+        description: "Twitter's sign-in service is temporarily unavailable. Please try again shortly.",
+      };
+    }
+    return {
+      title: "Twitter sign-in failed",
+      description: error?.message || "Something went wrong while contacting Twitter. Please try again.",
+    };
+  };
+
+  const handleTwitterOAuth = async (intent: "sign-in" | "sign-up") => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "twitter",
+        options: { redirectTo: window.location.origin + "/auth" },
+      });
+      if (error) {
+        const mapped = mapTwitterOAuthError(error);
+        toast({
+          title: intent === "sign-up" ? mapped.title.replace("sign-in", "sign-up") : mapped.title,
+          description: mapped.description,
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      const mapped = mapTwitterOAuthError(err ?? {});
+      toast({
+        title: intent === "sign-up" ? "Twitter sign-up failed" : "Twitter sign-in failed",
+        description: mapped.description,
+        variant: "destructive",
+      });
     }
   };
+
+  const handleTwitterSignIn = () => handleTwitterOAuth("sign-in");
 
   return (
     <div className="min-h-screen bg-secondary flex items-center justify-center px-4">
@@ -255,13 +335,13 @@ const Auth = () => {
               <Button
                 variant="outline"
                 className="w-full gap-2 mt-3"
-                onClick={handleTwitterSignIn}
+                onClick={() => handleTwitterOAuth(view === "sign-up" ? "sign-up" : "sign-in")}
                 type="button"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
                 </svg>
-                Sign in with Twitter
+                {view === "sign-up" ? "Sign up with Twitter" : "Sign in with Twitter"}
               </Button>
 
               <p className="text-center text-sm text-muted-foreground mt-6">
