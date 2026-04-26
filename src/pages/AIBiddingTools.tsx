@@ -282,7 +282,7 @@ const AIBiddingTools = () => (
       </div>
     </section>
 
-    {/* Bid → get paid */}
+    {/* Quote → get paid */}
     <section className="py-20 px-4 bg-background">
       <div className="max-w-3xl mx-auto text-center">
         <h2 className="text-3xl font-extrabold font-heading text-foreground mb-4">
