@@ -27,7 +27,7 @@ const TradePhotoAnalyzer = () => {
   const { toast } = useToast();
   const { user, loading } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { categories } = useVertical();
+  const { categories, categoryIcon } = useVertical();
 
   const [photos, setPhotos] = useState<PhotoFile[]>([]);
   const [description, setDescription] = useState("");
@@ -214,7 +214,7 @@ const TradePhotoAnalyzer = () => {
                     <SelectItem value="_auto">Auto-detect (optional)</SelectItem>
                     {categories.map((cat) => (
                       <SelectItem key={cat.value} value={cat.value}>
-                        {cat.icon ? `${cat.icon} ` : ""}{cat.label}
+                        {cat.value === "auto" ? cat.label : `${categoryIcon(cat)} ${cat.label}`}
                       </SelectItem>
                     ))}
                   </SelectContent>
