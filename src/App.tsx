@@ -20,6 +20,7 @@ const VideoAnalyzer = lazy(() => import("./pages/VideoAnalyzer.tsx"));
 const About = lazy(() => import("./pages/About.tsx"));
 const Contact = lazy(() => import("./pages/Contact.tsx"));
 const Privacy = lazy(() => import("./pages/Privacy.tsx"));
+const Terms = lazy(() => import("./pages/Terms.tsx"));
 const ContractorSignUp = lazy(() => import("./pages/ContractorSignUp.tsx"));
 const ContractorOnboarding = lazy(() => import("./pages/ContractorOnboarding.tsx"));
 const ContractorProfile = lazy(() => import("./pages/ContractorProfile.tsx"));
@@ -61,6 +62,7 @@ const App = () => {
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
               <Route path="/contractor-signup" element={<ContractorSignUp />} />
               <Route path="/contractor/signup" element={<ContractorOnboarding />} />
               <Route path="/contractor/profile/*" element={<ContractorProfile />} />
