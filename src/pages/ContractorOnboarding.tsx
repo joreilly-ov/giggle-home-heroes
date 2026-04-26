@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useVertical } from "@/contexts/VerticalContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,13 +14,6 @@ import {
   ArrowLeft,
   Check,
   Wrench,
-  Zap,
-  Droplets,
-  Home,
-  Paintbrush,
-  Hammer,
-  Thermometer,
-  HardHat,
   MapPin,
   Loader2,
   ShieldCheck,
@@ -28,21 +22,11 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-const EXPERTISE_OPTIONS = [
-  { label: "Plumbing", icon: Droplets, description: "Pipes, fixtures & water systems" },
-  { label: "Electrical", icon: Zap, description: "Wiring, panels & lighting" },
-  { label: "Structural", icon: HardHat, description: "Foundations, framing & load-bearing" },
-  { label: "Damp & Waterproofing", icon: Droplets, description: "Moisture control & sealing" },
-  { label: "Roofing", icon: Home, description: "Shingles, flashing & gutters" },
-  { label: "General Contracting", icon: Hammer, description: "Full-service builds & renovations" },
-  { label: "HVAC", icon: Thermometer, description: "Heating, cooling & ventilation" },
-  { label: "Painting & Finishing", icon: Paintbrush, description: "Interior & exterior finishes" },
-];
-
 const ContractorOnboarding = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { categories, providerLabelTitle } = useVertical();
   const [step, setStep] = useState(1);
 
   // Redirect unauthenticated visitors to sign in, then return here
