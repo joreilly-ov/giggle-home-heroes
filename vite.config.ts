@@ -56,6 +56,7 @@ export default defineConfig(({ mode }) => ({
         skipWaiting: true,
         navigateFallbackDenylist: [/^\/~oauth/],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       },
     }),
   ].filter(Boolean),

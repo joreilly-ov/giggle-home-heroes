@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { api } from "@/lib/api";
 import { ContractorPayoutCard } from "@/components/escrow/ContractorPayoutCard";
+import { PrivyWalletCard } from "@/components/contractor/PrivyWalletCard";
 import { NotificationSettings } from "@/components/contractor/NotificationSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -232,8 +233,9 @@ export function ProfileSettings() {
       {/* ── Notifications ── */}
       <NotificationSettings />
 
-      {/* ── Payout card ── */}
+      {/* ── Payout cards ── */}
       <ContractorPayoutCard />
+      <PrivyWalletCard />
     </div>
   );
 }

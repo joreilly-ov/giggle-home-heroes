@@ -8,6 +8,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { VerticalProvider } from "@/contexts/VerticalContext";
 import SplashScreen from "@/components/SplashScreen";
 import Index from "./pages/Index.tsx";
+import { PrivyProvider } from "@privy-io/react-auth";
 
 // Lazy-loaded routes to reduce initial bundle size
 const Auth = lazy(() => import("./pages/Auth.tsx"));
@@ -37,10 +38,20 @@ const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 const queryClient = new QueryClient();
 
+const PRIVY_APP_ID = import.meta.env.VITE_PRIVY_APP_ID ?? "clsnjfcnf02542j0fjyl6bw6f";
+
 const App = () => {
   const [splashDone, setSplashDone] = useState(false);
 
   return (
+  <PrivyProvider
+    appId={PRIVY_APP_ID}
+    config={{
+      embeddedWallets: { createOnLogin: "users-without-wallets" },
+      defaultChain: { id: 8453, name: "Base", nativeCurrency: { decimals: 18, name: "Ether", symbol: "ETH" }, rpcUrls: { default: { http: ["https://mainnet.base.org"] } } },
+      supportedChains: [{ id: 8453, name: "Base", nativeCurrency: { decimals: 18, name: "Ether", symbol: "ETH" }, rpcUrls: { default: { http: ["https://mainnet.base.org"] } } }],
+    }}
+  >
   <>
     {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
   <QueryClientProvider client={queryClient}>
@@ -86,6 +97,7 @@ const App = () => {
     </TooltipProvider>
   </QueryClientProvider>
   </>
+  </PrivyProvider>
   );
 };
 
