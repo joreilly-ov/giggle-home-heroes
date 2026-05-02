@@ -48,7 +48,9 @@ const App = () => {
   <PrivyProvider
     appId={PRIVY_APP_ID}
     config={{
-      embeddedWallets: { createOnLogin: "users-without-wallets" },
+      embeddedWallets: {
+        ethereum: { createOnLogin: "users-without-wallets" },
+      },
       defaultChain: { id: 8453, name: "Base", nativeCurrency: { decimals: 18, name: "Ether", symbol: "ETH" }, rpcUrls: { default: { http: ["https://mainnet.base.org"] } } },
       supportedChains: [{ id: 8453, name: "Base", nativeCurrency: { decimals: 18, name: "Ether", symbol: "ETH" }, rpcUrls: { default: { http: ["https://mainnet.base.org"] } } }],
     }}
