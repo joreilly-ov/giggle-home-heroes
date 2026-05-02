@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Upload, FileText, Check } from "lucide-react";
+import { Upload, FileText, Check, Download, Music } from "lucide-react";
 
 // Hidden page — not linked anywhere. Pure client-side Spotify CSV → Apple Music XML converter.
 
