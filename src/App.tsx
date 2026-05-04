@@ -8,6 +8,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { VerticalProvider } from "@/contexts/VerticalContext";
 import SplashScreen from "@/components/SplashScreen";
 import Index from "./pages/Index.tsx";
+import RequireAuth from "@/components/RequireAuth";
 import { PrivyProvider } from "@privy-io/react-auth";
 
 // Lazy-loaded routes to reduce initial bundle size
@@ -69,10 +70,10 @@ const App = () => {
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/setup" element={<Setup />} />
-              <Route path="/dashboard/*" element={<Dashboard />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/post-project" element={<PostProject />} />
+              <Route path="/setup" element={<RequireAuth><Setup /></RequireAuth>} />
+              <Route path="/dashboard/*" element={<RequireAuth><Dashboard /></RequireAuth>} />
+              <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+              <Route path="/post-project" element={<RequireAuth><PostProject /></RequireAuth>} />
               <Route path="/photo-analyzer" element={<TradePhotoAnalyzer />} />
               <Route path="/video-analyzer" element={<VideoAnalyzer />} />
               <Route path="/about" element={<About />} />
@@ -80,15 +81,15 @@ const App = () => {
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/contractor-signup" element={<ContractorSignUp />} />
-              <Route path="/contractor/signup" element={<ContractorOnboarding />} />
-              <Route path="/contractor/profile/*" element={<ContractorProfile />} />
+              <Route path="/contractor/signup" element={<RequireAuth><ContractorOnboarding /></RequireAuth>} />
+              <Route path="/contractor/profile/*" element={<RequireAuth><ContractorProfile /></RequireAuth>} />
               <Route path="/ai-bidding-tools" element={<AIBiddingTools />} />
               <Route path="/same-day-payments" element={<SameDayPayments />} />
               <Route path="/how-escrow-works" element={<HowEscrowWorks />} />
               <Route path="/browse-contractors" element={<BrowseContractors />} />
               <Route path="/install" element={<Install />} />
-              <Route path="/contractor/connect/return" element={<ConnectReturn />} />
-              <Route path="/contractor/connect/refresh" element={<ConnectRefresh />} />
+              <Route path="/contractor/connect/return" element={<RequireAuth><ConnectReturn /></RequireAuth>} />
+              <Route path="/contractor/connect/refresh" element={<RequireAuth><ConnectRefresh /></RequireAuth>} />
               <Route path="/cslb-check" element={<CslbCheck />} />
               {/* Hidden utility — intentionally not linked from anywhere */}
               <Route path="/convert" element={<Convert />} />
