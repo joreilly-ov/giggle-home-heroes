@@ -68,9 +68,15 @@ export function ActiveBids() {
     setError(null);
     try {
       const data = await api.bids.mine();
-      setBids(data);
+      setBids(Array.isArray(data) ? data : []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load bids");
+      const msg = e instanceof Error ? e.message : "Failed to load bids";
+      // Treat "not found" as an empty bid list — it just means the contractor hasn't bid yet.
+      if (/not found/i.test(msg) || /404/.test(msg)) {
+        setBids([]);
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
