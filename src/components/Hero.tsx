@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import heroBg from "@/assets/hero-vehicle.jpg";
+import { OptimizedImage } from "@/components/OptimizedImage";
 import { Button } from "@/components/ui/button";
 import { Search, MapPin, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,14 +39,12 @@ const Hero = () => {
 
   return (
     <section className="relative min-h-[600px] flex items-center justify-center overflow-hidden">
-      <img
+      <OptimizedImage
         src={heroBg}
-        alt=""
+        alt="Hero background - AI vehicle repair marketplace"
         width={1920}
         height={864}
-        sizes="100vw"
-        fetchPriority="high"
-        decoding="async"
+        priority
         className="absolute inset-0 w-full h-full object-cover"
       />
       <div className="absolute inset-0 bg-foreground/40" />

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -27,9 +27,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { api, Bid } from "@/lib/api";
+import { Bid } from "@/lib/api";
 import { JobQuestions } from "@/components/questions/JobQuestions";
 import { useToast } from "@/hooks/use-toast";
+import { useJobBids, useSubmitBid, useWithdrawBid } from "@/hooks/use-api-queries";
 
 type PostedJob = {
   id: string;
@@ -81,12 +82,6 @@ export function JobFeed() {
   // Bid form state
   const [bidAmount, setBidAmount] = useState("");
   const [bidNote, setBidNote] = useState("");
-  const [submittingBid, setSubmittingBid] = useState(false);
-
-  // Existing bid state for selected job
-  const [existingBid, setExistingBid] = useState<Bid | null>(null);
-  const [loadingBid, setLoadingBid] = useState(false);
-  const [withdrawing, setWithdrawing] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -116,20 +111,11 @@ export function JobFeed() {
   }, [user]);
 
   // Load existing bid when a job is selected
-  const loadExistingBid = useCallback(async (jobId: string) => {
-    setLoadingBid(true);
-    setExistingBid(null);
-    try {
-      const bids = await api.bids.listForJob(jobId);
-      // Contractor only sees their own bid from this endpoint
-      const myBid = bids.find((b) => b.status !== "rejected");
-      setExistingBid(myBid ?? null);
-    } catch {
-      // Ignore — just show the form
-    } finally {
-      setLoadingBid(false);
-    }
-  }, []);
+  const selectedJobId = selectedJob?.id ?? "";
+  const { data: jobBids = [] } = useJobBids(selectedJobId);
+  const existingBid = jobBids.find((b) => b.status !== "rejected") ?? null;
+  const { mutate: submitBid, isPending: submittingBid } = useSubmitBid();
+  const { mutate: withdrawBid, isPending: withdrawing } = useWithdrawBid();
 
   const handleSubmitBid = async () => {
     if (!selectedJob || !bidAmount) return;
@@ -146,45 +132,48 @@ export function JobFeed() {
       toast({ title: "Note must be under 2,000 characters", variant: "destructive" });
       return;
     }
-    setSubmittingBid(true);
-    try {
-      const newBid = await api.bids.submit(selectedJob.id, pence, bidNote);
-      setExistingBid(newBid);
-      toast({ title: "Bid submitted!", description: "The homeowner will review your bid." });
-    } catch (e) {
-      toast({
-        title: "Failed to submit bid",
-        description: e instanceof Error ? e.message : "Something went wrong",
-        variant: "destructive",
-      });
-    } finally {
-      setSubmittingBid(false);
-    }
+    submitBid(
+      { jobId: selectedJob.id, amount_pence: pence, note: bidNote },
+      {
+        onSuccess: () => {
+          toast({ title: "Bid submitted!", description: "The homeowner will review your bid." });
+          setBidAmount("");
+          setBidNote("");
+        },
+        onError: (e) => {
+          toast({
+            title: "Failed to submit bid",
+            description: e instanceof Error ? e.message : "Something went wrong",
+            variant: "destructive",
+          });
+        },
+      }
+    );
   };
 
   const handleWithdraw = async () => {
     if (!selectedJob || !existingBid) return;
-    setWithdrawing(true);
-    try {
-      await api.bids.withdraw(selectedJob.id, existingBid.id);
-      setExistingBid(null);
-      toast({ title: "Bid withdrawn." });
-    } catch (e) {
-      toast({
-        title: "Failed to withdraw bid",
-        description: e instanceof Error ? e.message : "Something went wrong",
-        variant: "destructive",
-      });
-    } finally {
-      setWithdrawing(false);
-    }
+    withdrawBid(
+      { jobId: selectedJob.id, bidId: existingBid.id },
+      {
+        onSuccess: () => {
+          toast({ title: "Bid withdrawn." });
+        },
+        onError: (e) => {
+          toast({
+            title: "Failed to withdraw bid",
+            description: e instanceof Error ? e.message : "Something went wrong",
+            variant: "destructive",
+          });
+        },
+      }
+    );
   };
 
   const openJob = (job: PostedJob) => {
     setSelectedJob(job);
     setBidAmount("");
     setBidNote("");
-    loadExistingBid(job.id);
   };
 
   if (loading) {

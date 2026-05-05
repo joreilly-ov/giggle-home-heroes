@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,8 @@ import {
   ChevronRight,
   Trash2,
 } from "lucide-react";
-import { api, Bid } from "@/lib/api";
+import { Bid } from "@/lib/api";
+import { useMyBids, useWithdrawBid } from "@/hooks/use-api-queries";
 import { useToast } from "@/hooks/use-toast";
 import { MilestonesCard } from "@/components/milestones/MilestonesCard";
 
@@ -57,34 +58,12 @@ const STATUS_CONFIG: Record<
 
 export function ActiveBids() {
   const { toast } = useToast();
-  const [bids, setBids] = useState<Bid[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [expandedBid, setExpandedBid] = useState<string | null>(null);
   const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await api.bids.mine();
-      setBids(Array.isArray(data) ? data : []);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed to load bids";
-      // Treat "not found" as an empty bid list — it just means the contractor hasn't bid yet.
-      if (/not found/i.test(msg) || /404/.test(msg)) {
-        setBids([]);
-      } else {
-        setError(msg);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  
+  // Fetch bids with React Query (includes auto-polling every 30s)
+  const { data: bids = [], isLoading, error, refetch } = useMyBids();
+  const { mutate: withdrawBid } = useWithdrawBid();
 
   const pendingCount = bids.filter((b) => b.status === "pending").length;
   const acceptedCount = bids.filter((b) => b.status === "accepted").length;
@@ -100,21 +79,25 @@ export function ActiveBids() {
     maximumFractionDigits: 0,
   });
 
-  const handleWithdraw = async (bid: Bid) => {
+  const handleWithdraw = (bid: Bid) => {
     setWithdrawingId(bid.id);
-    try {
-      await api.bids.withdraw(bid.job_id, bid.id);
-      toast({ title: "Bid withdrawn." });
-      await load();
-    } catch (e) {
-      toast({
-        title: "Failed to withdraw bid",
-        description: e instanceof Error ? e.message : "Something went wrong",
-        variant: "destructive",
-      });
-    } finally {
-      setWithdrawingId(null);
-    }
+    withdrawBid(
+      { jobId: bid.job_id, bidId: bid.id },
+      {
+        onSuccess: () => {
+          toast({ title: "Bid withdrawn." });
+          setWithdrawingId(null);
+        },
+        onError: (err) => {
+          toast({
+            title: "Failed to withdraw bid",
+            description: err instanceof Error ? err.message : "Something went wrong",
+            variant: "destructive",
+          });
+          setWithdrawingId(null);
+        },
+      }
+    );
   };
 
   return (
@@ -180,10 +163,10 @@ export function ActiveBids() {
             variant="ghost"
             size="sm"
             className="text-xs text-muted-foreground gap-1 h-7"
-            onClick={load}
-            disabled={loading}
+            onClick={() => refetch()}
+            disabled={isLoading}
           >
-            {loading ? (
+            {isLoading ? (
               <Loader2 className="w-3 h-3 animate-spin" />
             ) : (
               <RefreshCw className="w-3 h-3" />
@@ -192,7 +175,7 @@ export function ActiveBids() {
           </Button>
         </CardHeader>
         <CardContent className="p-0">
-          {loading ? (
+          {isLoading ? (
             <div className="flex items-center justify-center py-12 text-muted-foreground text-sm gap-2">
               <Loader2 className="w-4 h-4 animate-spin" /> Loading bids…
             </div>
@@ -202,8 +185,8 @@ export function ActiveBids() {
               <p className="text-sm text-destructive font-medium">
                 Failed to load bids
               </p>
-              <p className="text-xs text-muted-foreground">{error}</p>
-              <Button variant="outline" size="sm" onClick={load}>
+              <p className="text-xs text-muted-foreground">{error instanceof Error ? error.message : "Unknown error"}</p>
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
                 Retry
               </Button>
             </div>

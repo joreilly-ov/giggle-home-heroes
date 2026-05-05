@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Menu, X, User, LogOut } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { OptimizedImage } from "@/components/OptimizedImage";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import logoOnDark from "@/assets/kisxcars-logo-dark.png";
@@ -43,19 +44,20 @@ const Navbar = ({ variant = "transparent" }: NavbarProps) => {
       <div className="max-w-7xl mx-auto flex items-center justify-between h-16">
         <a href="/" className="flex items-center" aria-label="KisXCars home">
           {/* Light-text logo for dark navbar backgrounds (default + dark mode) */}
-          <img
+          <OptimizedImage
             src={logoSrc}
             alt="KisXCars"
             width={1536}
             height={512}
+            priority
             className="h-8 w-auto block dark:hidden"
           />
-          <img
+          <OptimizedImage
             src={logoSrcLight}
             alt=""
-            aria-hidden="true"
             width={1536}
             height={512}
+            priority
             className="h-8 w-auto hidden dark:block"
           />
         </a>

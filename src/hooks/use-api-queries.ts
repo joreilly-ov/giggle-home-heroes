@@ -105,6 +105,31 @@ export function useWithdrawBid() {
   });
 }
 
+export function useAcceptBid() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ jobId, bidId }: { jobId: string; bidId: string }) =>
+      api.bids.respond(jobId, bidId, 'accept'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['bids'] });
+    },
+  });
+}
+
+export function useRejectBid() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ jobId, bidId }: { jobId: string; bidId: string }) =>
+      api.bids.respond(jobId, bidId, 'reject'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bids'] });
+    },
+  });
+}
+
 // ─── Escrow Query ──────────────────────────────────────────────────────────
 
 export function useEscrowStatus(jobId: string) {
