@@ -19,8 +19,10 @@ const SplashScreen = ({ onDone }: SplashScreenProps) => {
       onDone();
       return;
     }
-    const fadeTimer = setTimeout(() => setFading(true), 1800);
-    const doneTimer = setTimeout(() => onDone(), 2300);
+    // Faster sequence: fade after 800ms, done after 1200ms total
+    // This is still branded but much faster than 2.3 seconds
+    const fadeTimer = setTimeout(() => setFading(true), 800);
+    const doneTimer = setTimeout(() => onDone(), 1200);
     return () => {
       clearTimeout(fadeTimer);
       clearTimeout(doneTimer);
