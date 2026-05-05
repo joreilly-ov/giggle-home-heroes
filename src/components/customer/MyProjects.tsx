@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, Job, JobStatus, EscrowStatusValue } from "@/lib/api";
+import { useJobs, useJob } from "@/hooks/use-api-queries";
 import { JobBids } from "@/components/customer/JobBids";
 import { EscrowPayment } from "@/components/escrow/EscrowPayment";
 import { EscrowStatusBanner } from "@/components/escrow/EscrowStatusBanner";
@@ -387,46 +388,25 @@ function JobDetail({ job, onStatusChanged, onClose }: JobDetailProps) {
 
 export function MyProjects() {
   const navigate = useNavigate();
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  
+  // Fetch all jobs with React Query
+  const { data: jobs = [], isLoading, error, refetch } = useJobs();
+  
+  // Fetch selected job details for real-time updates
+  const { data: selectedJobData } = useJob(selectedJob?.id ?? "");
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await api.jobs.list();
-      // API may return a non-array on auth error (e.g. { error: "..." })
-      if (!Array.isArray(data)) {
-        console.error("[MyProjects] Unexpected response from /jobs:", data);
-        setError((data as any)?.error ?? "Unexpected response from server");
-        return;
-      }
-      setJobs(data);
-    } catch (e) {
-      console.error("[MyProjects] Failed to load projects:", e);
-      setError(e instanceof Error ? e.message : "Failed to load projects");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  // Update selected job when details change
   useEffect(() => {
-    load();
-  }, [load]);
+    if (selectedJobData) {
+      setSelectedJob(selectedJobData);
+    }
+  }, [selectedJobData]);
 
   const handleStatusChanged = useCallback(async () => {
-    await load();
-    if (selectedJob) {
-      try {
-        const updated = await api.jobs.get(selectedJob.id);
-        setSelectedJob(updated);
-      } catch {
-        setSelectedJob(null);
-      }
-    }
-  }, [load, selectedJob]);
+    // Refetch to get fresh data
+    await refetch();
+  }, [refetch]);
 
   const completedCount = jobs.filter((j) => j.status === "completed").length;
   const activeCount = jobs.filter(
@@ -488,7 +468,7 @@ export function MyProjects() {
           </Button>
         </CardHeader>
         <CardContent className="p-0">
-          {loading ? (
+          {isLoading ? (
             <div className="flex items-center justify-center py-12 text-muted-foreground text-sm gap-2">
               <Loader2 className="w-4 h-4 animate-spin" /> Loading projects…
             </div>
@@ -496,7 +476,7 @@ export function MyProjects() {
             <div className="flex flex-col items-center justify-center py-12 gap-2 text-center">
               <AlertTriangle className="w-6 h-6 text-destructive" />
               <p className="text-sm text-destructive font-medium">Failed to load projects</p>
-              <p className="text-xs text-muted-foreground">{error}</p>
+              <p className="text-xs text-muted-foreground">{error instanceof Error ? error.message : "Unknown error"}</p>
             </div>
           ) : jobs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-14 gap-3 text-center">

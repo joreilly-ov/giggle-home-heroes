@@ -1,5 +1,6 @@
 import { Camera, X } from "lucide-react";
 import { PhotoFile, ImageFeedback, MAX_PHOTOS } from "./types";
+import { OptimizedImage } from "@/components/OptimizedImage";
 
 type Props = {
   photos: PhotoFile[];
@@ -16,7 +17,7 @@ const PhotoGrid = ({ photos, onRemove, onAddMore, imageFeedback }: Props) => (
 
       return (
         <div key={p.id} className={`relative group aspect-square rounded-xl overflow-hidden border bg-secondary ${isBlurry ? "border-destructive" : "border-border"}`}>
-          <img src={p.preview} alt="Upload preview" className="w-full h-full object-cover" />
+          <OptimizedImage src={p.preview} alt="Upload preview" className="w-full h-full object-cover" />
           <button
             onClick={() => onRemove(p.id)}
             className="absolute top-2 right-2 bg-background/80 backdrop-blur-sm rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"

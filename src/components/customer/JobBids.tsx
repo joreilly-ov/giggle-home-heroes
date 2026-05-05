@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { api, Bid, JobStatus } from "@/lib/api";
+import { Bid, JobStatus } from "@/lib/api";
 import {
   Loader2,
   AlertTriangle,
@@ -14,6 +14,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useJobBids, useAcceptBid, useRejectBid } from "@/hooks/use-api-queries";
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -48,55 +49,61 @@ interface JobBidsProps {
 
 export function JobBids({ jobId, jobStatus, onBidAccepted }: JobBidsProps) {
   const { toast } = useToast();
-  const [bids, setBids] = useState<Bid[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [acting, setActing] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await api.bids.listForJob(jobId);
-      setBids(data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load bids");
-    } finally {
-      setLoading(false);
-    }
-  }, [jobId]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  const { data: bids = [], isLoading, error, refetch } = useJobBids(jobId);
+  const { mutate: acceptBid } = useAcceptBid();
+  const { mutate: rejectBid } = useRejectBid();
 
   const respond = async (bidId: string, action: "accept" | "reject") => {
     setActing(bidId);
     try {
-      await api.bids.respond(jobId, bidId, action);
       if (action === "accept") {
-        toast({
-          title: "Bid accepted!",
-          description:
-            "All other bids have been declined and the job is now awarded.",
-        });
-        onBidAccepted?.();
+        acceptBid(
+          { jobId, bidId },
+          {
+            onSuccess: () => {
+              toast({
+                title: "Bid accepted!",
+                description:
+                  "All other bids have been declined and the job is now awarded.",
+              });
+              onBidAccepted?.();
+            },
+            onError: (err) => {
+              toast({
+                title: "Failed to accept bid",
+                description: err instanceof Error ? err.message : "Something went wrong",
+                variant: "destructive",
+              });
+            },
+            onSettled: () => setActing(null),
+          }
+        );
       } else {
-        toast({ title: "Bid declined." });
+        rejectBid(
+          { jobId, bidId },
+          {
+            onSuccess: () => {
+              toast({ title: "Bid declined." });
+            },
+            onError: (err) => {
+              toast({
+                title: "Failed to reject bid",
+                description: err instanceof Error ? err.message : "Something went wrong",
+                variant: "destructive",
+              });
+            },
+            onSettled: () => setActing(null),
+          }
+        );
       }
-      await load();
     } catch (e) {
-      toast({
-        title: `Failed to ${action} bid`,
-        description: e instanceof Error ? e.message : "Something went wrong",
-        variant: "destructive",
-      });
-    } finally {
       setActing(null);
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8 text-muted-foreground text-sm gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading bids…
@@ -109,7 +116,7 @@ export function JobBids({ jobId, jobStatus, onBidAccepted }: JobBidsProps) {
       <div className="flex flex-col items-center gap-2 py-6 text-center">
         <AlertTriangle className="w-5 h-5 text-destructive" />
         <p className="text-xs text-destructive">{error}</p>
-        <Button variant="outline" size="sm" onClick={load}>
+        <Button variant="outline" size="sm" onClick={() => refetch()}>
           <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Retry
         </Button>
       </div>

@@ -28,6 +28,7 @@ import {
 import { api } from "@/lib/api";
 import type { Milestone, MilestoneStatus } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { OptimizedImage } from "@/components/OptimizedImage";
 
 // ─── Status badge config ──────────────────────────────────────────────────────
 
@@ -242,7 +243,7 @@ function MilestoneRow({
             <div className="grid grid-cols-3 gap-2">
               {m.photos.map((p) => (
                 <div key={p.id} className="relative group">
-                  <img
+                  <OptimizedImage
                     src={p.url}
                     alt="Evidence"
                     className="w-full aspect-square object-cover rounded-lg border border-border"
@@ -366,7 +367,7 @@ function PhotoUploadSection({
 
       {preview ? (
         <div className="space-y-3">
-          <img src={preview} alt="Preview" className="w-full max-h-48 object-cover rounded-lg border border-border" />
+          <OptimizedImage src={preview} alt="Preview" className="w-full max-h-48 object-cover rounded-lg border border-border" />
           <Textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
