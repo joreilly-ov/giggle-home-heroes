@@ -258,7 +258,7 @@ const PostProject = () => {
       if (!response.ok) {
         throw new Error(backendErrorMessage(data, response.status));
       }
-      if (data?.error) throw new Error(data.error);
+      if (typeof data.error === "string") throw new Error(data.error);
 
       setResult(data as AnalysisResult);
       setProgress(100);
