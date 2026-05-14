@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { api } from "@/lib/api";
 import type { RfpDocument, MatchResponse, Job } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -63,10 +64,19 @@ const getUrgencyStyle = (urgency: string) => {
   return URGENCY_STYLES[key] || { bg: "bg-muted text-muted-foreground", label: urgency };
 };
 
-const backendErrorMessage = (data: any, status: number) => {
-  if (typeof data?.error === "string") return data.error;
-  if (typeof data?.detail === "string") return data.detail;
-  if (Array.isArray(data?.detail)) return data.detail.map((d: any) => d?.msg || d?.message || String(d)).join("; ");
+const backendErrorMessage = (data: unknown, status: number) => {
+  const payload = typeof data === "object" && data !== null ? data as Record<string, unknown> : {};
+  if (typeof payload.error === "string") return payload.error;
+  if (typeof payload.detail === "string") return payload.detail;
+  if (Array.isArray(payload.detail)) {
+    return payload.detail.map((item) => {
+      if (typeof item === "object" && item !== null) {
+        const detail = item as Record<string, unknown>;
+        return detail.msg || detail.message || JSON.stringify(detail);
+      }
+      return String(item);
+    }).join("; ");
+  }
   return `Analysis failed (${status})`;
 };
 
