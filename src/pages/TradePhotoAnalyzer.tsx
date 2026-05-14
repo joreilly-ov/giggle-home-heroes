@@ -12,15 +12,7 @@ import PhotoGrid from "@/components/photo-analyzer/PhotoGrid";
 import AnalysisResults from "@/components/photo-analyzer/AnalysisResults";
 import { PhotoFile, AnalysisResult, MAX_PHOTOS, MAX_FILE_SIZE, ACCEPTED_TYPES } from "@/components/photo-analyzer/types";
 import { useVertical } from "@/contexts/VerticalContext";
-
-
-const fileToBase64 = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+import { fileToPhotoDataUri, isSupportedPhotoForAnalysis } from "@/lib/photo-analysis";
 
 const TradePhotoAnalyzer = () => {
   const navigate = useNavigate();
@@ -51,12 +43,12 @@ const TradePhotoAnalyzer = () => {
     }
     const valid: PhotoFile[] = [];
     for (const f of incoming.slice(0, remaining)) {
-      if (!ACCEPTED_TYPES.includes(f.type)) {
-        toast({ title: "Invalid file", description: `${f.name} is not a supported image format.`, variant: "destructive" });
+      if (!isSupportedPhotoForAnalysis(f)) {
+        toast({ title: "Unsupported photo format", description: `${f.name} must be a JPG, PNG or WebP photo. HEIC photos aren't supported.`, variant: "destructive" });
         continue;
       }
       if (f.size > MAX_FILE_SIZE) {
-        toast({ title: "File too large", description: `${f.name} exceeds 10MB limit.`, variant: "destructive" });
+        toast({ title: "File too large", description: `${f.name} exceeds 20MB limit.`, variant: "destructive" });
         continue;
       }
       valid.push({ file: f, preview: URL.createObjectURL(f), id: crypto.randomUUID() });
@@ -98,7 +90,7 @@ const TradePhotoAnalyzer = () => {
     setError(null);
 
     try {
-      const images = await Promise.all(photos.map((p) => fileToBase64(p.file)));
+      const images = await Promise.all(photos.map((p) => fileToPhotoDataUri(p.file)));
 
       const payload: Record<string, unknown> = {
         images,
@@ -110,8 +102,8 @@ const TradePhotoAnalyzer = () => {
         body: payload,
       });
 
-      if (data?.error) throw new Error(data.error);
       if (fnError) throw new Error(fnError.message || "Analysis failed");
+      if (data?.error) throw new Error(data.error);
 
       setResult(data as AnalysisResult);
       toast({ title: "Analysis complete!", description: `${photos.length} photo(s) processed.` });
