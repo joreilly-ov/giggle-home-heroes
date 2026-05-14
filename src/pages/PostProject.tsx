@@ -723,7 +723,7 @@ const PostProject = () => {
               {result.estimated_cost_range && (
                 <div className="bg-card border border-border rounded-xl p-6">
                   <h3 className="text-sm font-medium text-muted-foreground mb-2 uppercase tracking-wide">Estimated Cost</h3>
-                  <p className="text-foreground font-semibold">{result.estimated_cost_range}</p>
+                  <p className="text-foreground font-semibold">{result.estimated_cost_range.replace(/£/g, "$")}</p>
                 </div>
               )}
 
