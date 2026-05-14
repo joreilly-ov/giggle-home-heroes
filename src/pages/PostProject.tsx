@@ -183,57 +183,40 @@ const PostProject = () => {
     setError(null);
 
     try {
-      // Normalize MIME — some browsers send .mov as application/octet-stream, which the backend rejects.
-      let uploadFile: File = file;
-      const expectedPrefix = isImage ? "image/" : "video/";
-      if (!file.type.startsWith(expectedPrefix)) {
-        const ext = file.name.split(".").pop()?.toLowerCase();
-        const videoFallback =
-          ext === "mov" ? "video/quicktime" :
-          ext === "webm" ? "video/webm" :
-          "video/mp4";
-        const imageFallback =
-          ext === "png" ? "image/png" :
-          ext === "webp" ? "image/webp" :
-          "image/jpeg";
-        uploadFile = new File([file], file.name, { type: isImage ? imageFallback : videoFallback });
-      }
-      const formData = new FormData();
-      formData.append("file", uploadFile);
-
-      if (description.trim().length >= 10) {
-        formData.append("description", description.trim());
-      }
-      if (tradeCategory && tradeCategory !== "_auto") {
-        formData.append("trade_category", tradeCategory);
-      }
-
-      // Try to get browser location
-      if ("geolocation" in navigator) {
-        try {
-          const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 })
-          );
-          formData.append("browser_lat", pos.coords.latitude.toString());
-          formData.append("browser_lon", pos.coords.longitude.toString());
-        } catch {
-          // Location not available, continue without
-        }
-      }
-
       setProgress(30);
 
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
 
-      const response = await fetch(
-        "https://stable-gig-374485351183.europe-west1.run.app/analyse",
-        {
-          method: "POST",
-          body: formData,
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        }
-      );
+      const body = isImage
+        ? JSON.stringify({
+            images: [await fileToPhotoDataUri(file)],
+            description: description.trim(),
+            ...(tradeCategory && tradeCategory !== "_auto" ? { trade_category: tradeCategory } : {}),
+          })
+        : (() => {
+            // Normalize MIME — some browsers send .mov as application/octet-stream, which the backend rejects.
+            let uploadFile: File = file;
+            if (!file.type.startsWith("video/")) {
+              const ext = file.name.split(".").pop()?.toLowerCase();
+              const fallback = ext === "mov" ? "video/quicktime" : ext === "webm" ? "video/webm" : "video/mp4";
+              uploadFile = new File([file], file.name, { type: fallback });
+            }
+            const formData = new FormData();
+            formData.append("file", uploadFile);
+            if (description.trim().length >= 10) formData.append("description", description.trim());
+            if (tradeCategory && tradeCategory !== "_auto") formData.append("trade_category", tradeCategory);
+            return formData;
+          })();
+
+      const response = await fetch(`https://stable-gig-cars-374485351183.europe-west1.run.app/analyse${isImage ? "/photos" : ""}`, {
+        method: "POST",
+        body,
+        headers: {
+          ...(isImage ? { "Content-Type": "application/json" } : {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
 
       setProgress(90);
 
@@ -249,12 +232,7 @@ const PostProject = () => {
         console.log("[PostProject] /analyse body:", data);
       }
       if (!response.ok) {
-        const detail =
-          data?.error ||
-          data?.detail ||
-          (Array.isArray(data?.detail) ? data.detail.map((d: any) => d.msg).join("; ") : null) ||
-          `Analysis failed (${response.status})`;
-        throw new Error(detail);
+        throw new Error(backendErrorMessage(data, response.status));
       }
       if (data?.error) throw new Error(data.error);
 
