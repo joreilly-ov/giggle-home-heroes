@@ -67,6 +67,8 @@ const PostProject = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const { categories } = useVertical();
 
   const [file, setFile] = useState<File | null>(null);
