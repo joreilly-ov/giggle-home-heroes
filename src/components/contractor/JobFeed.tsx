@@ -112,7 +112,7 @@ export function JobFeed() {
 
   // Load existing bid when a job is selected
   const selectedJobId = selectedJob?.id ?? "";
-  const { data: jobBids = [] } = useJobBids(selectedJobId);
+  const { data: jobBids = [], isLoading: loadingBid } = useJobBids(selectedJobId);
   const existingBid = jobBids.find((b) => b.status !== "rejected") ?? null;
   const { mutate: submitBid, isPending: submittingBid } = useSubmitBid();
   const { mutate: withdrawBid, isPending: withdrawing } = useWithdrawBid();

@@ -115,7 +115,7 @@ export function JobBids({ jobId, jobStatus, onBidAccepted }: JobBidsProps) {
     return (
       <div className="flex flex-col items-center gap-2 py-6 text-center">
         <AlertTriangle className="w-5 h-5 text-destructive" />
-        <p className="text-xs text-destructive">{error}</p>
+        <p className="text-xs text-destructive">{error instanceof Error ? error.message : String(error)}</p>
         <Button variant="outline" size="sm" onClick={() => refetch()}>
           <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Retry
         </Button>

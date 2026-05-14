@@ -17,6 +17,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import * as apiModule from '@/lib/api';
+const mockedApi = apiModule.api as any;
 
 // Mock the api module
 vi.mock('@/lib/api', () => ({
@@ -83,7 +84,7 @@ describe('useJobs', () => {
       { id: '1', status: 'open' as const },
       { id: '2', status: 'awarded' as const },
     ];
-    vi.spyOn(apiModule.api.jobs, 'list').mockResolvedValue(mockJobs);
+    vi.spyOn(mockedApi.jobs, 'list').mockResolvedValue(mockJobs);
 
     const { result } = renderHook(() => {
       // This will fail at runtime since the hook is imported, but demonstrates the pattern
@@ -95,7 +96,7 @@ describe('useJobs', () => {
 
   it('handles fetch errors gracefully', async () => {
     const error = new Error('Network error');
-    vi.spyOn(apiModule.api.jobs, 'list').mockRejectedValue(error);
+    vi.spyOn(mockedApi.jobs, 'list').mockRejectedValue(error);
 
     const { result } = renderHook(() => {
       return { data: [], isLoading: false, error, refetch: vi.fn() };
@@ -108,7 +109,7 @@ describe('useJobs', () => {
 describe('useJob', () => {
   it('fetches single job by ID', async () => {
     const mockJob = { id: '123', status: 'open' as const, title: 'Plumbing repair' };
-    vi.spyOn(apiModule.api.jobs, 'get').mockResolvedValue(mockJob);
+    vi.spyOn(mockedApi.jobs, 'get').mockResolvedValue(mockJob);
 
     const { result } = renderHook(() => {
       return { data: mockJob, isLoading: false, error: null };
@@ -132,7 +133,7 @@ describe('useMyBids', () => {
       { id: 'b1', job_id: '1', amount_pence: 5000, status: 'pending' as const },
       { id: 'b2', job_id: '2', amount_pence: 8000, status: 'accepted' as const },
     ];
-    vi.spyOn(apiModule.api.bids, 'mine').mockResolvedValue(mockBids);
+    vi.spyOn(mockedApi.bids, 'mine').mockResolvedValue(mockBids);
 
     const { result } = renderHook(() => {
       return { 
@@ -155,7 +156,7 @@ describe('useJobBids', () => {
       { id: 'b1', contractor: { business_name: 'Acme' }, amount_pence: 5000 },
       { id: 'b2', contractor: { business_name: 'BuildCorp' }, amount_pence: 6000 },
     ];
-    vi.spyOn(apiModule.api.bids, 'listForJob').mockResolvedValue(mockBids);
+    vi.spyOn(mockedApi.bids, 'listForJob').mockResolvedValue(mockBids);
 
     const { result } = renderHook(() => {
       return { data: mockBids, isLoading: false, error: null };
@@ -167,7 +168,7 @@ describe('useJobBids', () => {
 
 describe('Bid mutations', () => {
   it('useSubmitBid invalidates cache on success', () => {
-    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    const invalidateSpy: any = vi.spyOn(queryClient, 'invalidateQueries');
 
     const { result } = renderHook(() => {
       return {
@@ -183,7 +184,7 @@ describe('Bid mutations', () => {
   });
 
   it('useWithdrawBid invalidates bids cache', () => {
-    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    const invalidateSpy: any = vi.spyOn(queryClient, 'invalidateQueries');
 
     const { result } = renderHook(() => {
       return {
@@ -202,7 +203,7 @@ describe('Bid mutations', () => {
   });
 
   it('useAcceptBid invalidates job and bid queries', () => {
-    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    const invalidateSpy: any = vi.spyOn(queryClient, 'invalidateQueries');
 
     const { result } = renderHook(() => {
       return {
@@ -225,7 +226,7 @@ describe('Escrow queries', () => {
   it('useEscrowStatus fetches current escrow state with polling', async () => {
     const jobId = 'job-123';
     const mockStatus = { job_escrow_status: 'held' as const };
-    vi.spyOn(apiModule.api.escrow, 'status').mockResolvedValue(mockStatus);
+    vi.spyOn(mockedApi.escrow, 'status').mockResolvedValue(mockStatus);
 
     const { result } = renderHook(() => {
       return { 
@@ -245,7 +246,7 @@ describe('Escrow queries', () => {
 describe('Request deduplication', () => {
   it('same query key returns cached result without duplicate requests', async () => {
     const mockJobs = [{ id: '1' }];
-    const listSpy = vi.spyOn(apiModule.api.jobs, 'list').mockResolvedValue(mockJobs);
+    const listSpy = vi.spyOn(mockedApi.jobs, 'list').mockResolvedValue(mockJobs);
 
     const { result: result1 } = renderHook(() => {
       return { data: mockJobs, isLoading: false };
