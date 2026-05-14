@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { api } from "@/lib/api";
 import type { RfpDocument, MatchResponse, Job } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import TaskBreakdown from "@/components/photo-analyzer/TaskBreakdown";
 import { ClarificationsStep } from "@/components/post-project/ClarificationsStep";
 import { RfpReviewStep } from "@/components/post-project/RfpReviewStep";
 import { MatchedContractorsStep } from "@/components/post-project/MatchedContractorsStep";
+import { fileToPhotoDataUri } from "@/lib/photo-analysis";
 
 type VideoMetadata = {
   duration_seconds?: number;
@@ -60,6 +62,22 @@ const URGENCY_STYLES: Record<string, { bg: string; label: string }> = {
 const getUrgencyStyle = (urgency: string) => {
   const key = urgency.toLowerCase();
   return URGENCY_STYLES[key] || { bg: "bg-muted text-muted-foreground", label: urgency };
+};
+
+const backendErrorMessage = (data: unknown, status: number) => {
+  const payload = typeof data === "object" && data !== null ? data as Record<string, unknown> : {};
+  if (typeof payload.error === "string") return payload.error;
+  if (typeof payload.detail === "string") return payload.detail;
+  if (Array.isArray(payload.detail)) {
+    return payload.detail.map((item) => {
+      if (typeof item === "object" && item !== null) {
+        const detail = item as Record<string, unknown>;
+        return detail.msg || detail.message || JSON.stringify(detail);
+      }
+      return String(item);
+    }).join("; ");
+  }
+  return `Analysis failed (${status})`;
 };
 
 const PostProject = () => {
@@ -164,67 +182,70 @@ const PostProject = () => {
       toast({ title: "File too large", description: msg, variant: "destructive" });
       return;
     }
+    if (isImage && description.trim().length < 10) {
+      const msg = "Please describe the problem in at least 10 characters before analysing a photo.";
+      setError(msg);
+      toast({ title: "Description too short", description: msg, variant: "destructive" });
+      return;
+    }
     setUploading(true);
     setProgress(10);
     setError(null);
 
     try {
-      // Normalize MIME — some browsers send .mov as application/octet-stream, which the backend rejects.
-      let uploadFile: File = file;
-      const expectedPrefix = isImage ? "image/" : "video/";
-      if (!file.type.startsWith(expectedPrefix)) {
-        const ext = file.name.split(".").pop()?.toLowerCase();
-        const videoFallback =
-          ext === "mov" ? "video/quicktime" :
-          ext === "webm" ? "video/webm" :
-          "video/mp4";
-        const imageFallback =
-          ext === "png" ? "image/png" :
-          ext === "webp" ? "image/webp" :
-          "image/jpeg";
-        uploadFile = new File([file], file.name, { type: isImage ? imageFallback : videoFallback });
-      }
-      const formData = new FormData();
-      formData.append("file", uploadFile);
-
-      if (description.trim().length >= 10) {
-        formData.append("description", description.trim());
-      }
-      if (tradeCategory && tradeCategory !== "_auto") {
-        formData.append("trade_category", tradeCategory);
-      }
-
-      // Try to get browser location
-      if ("geolocation" in navigator) {
-        try {
-          const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 })
-          );
-          formData.append("browser_lat", pos.coords.latitude.toString());
-          formData.append("browser_lon", pos.coords.longitude.toString());
-        } catch {
-          // Location not available, continue without
-        }
-      }
-
       setProgress(30);
 
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
 
-      const response = await fetch(
-        "https://stable-gig-374485351183.europe-west1.run.app/analyse",
-        {
-          method: "POST",
-          body: formData,
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        }
-      );
+      const locationFields = !isImage && "geolocation" in navigator
+        ? await new Promise<{ lat: string; lon: string } | null>((resolve) => {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => resolve({ lat: pos.coords.latitude.toString(), lon: pos.coords.longitude.toString() }),
+              () => resolve(null),
+              { timeout: 5000 }
+            );
+          })
+        : null;
+
+      const body = isImage
+        ? JSON.stringify({
+            images: [await fileToPhotoDataUri(file)],
+            description: description.trim(),
+            ...(tradeCategory && tradeCategory !== "_auto" ? { trade_category: tradeCategory } : {}),
+          })
+        : (() => {
+            // Normalize MIME — some browsers send .mov as application/octet-stream, which the backend rejects.
+            let uploadFile: File = file;
+            if (!file.type.startsWith("video/")) {
+              const ext = file.name.split(".").pop()?.toLowerCase();
+              const fallback = ext === "mov" ? "video/quicktime" : ext === "webm" ? "video/webm" : "video/mp4";
+              uploadFile = new File([file], file.name, { type: fallback });
+            }
+            const formData = new FormData();
+            formData.append("file", uploadFile);
+            if (description.trim().length >= 10) formData.append("description", description.trim());
+            if (tradeCategory && tradeCategory !== "_auto") formData.append("trade_category", tradeCategory);
+            if (locationFields) {
+              formData.append("browser_lat", locationFields.lat);
+              formData.append("browser_lon", locationFields.lon);
+            }
+            return formData;
+          })();
+
+      const response = await fetch(`https://stable-gig-cars-374485351183.europe-west1.run.app/analyse${isImage ? "/photos" : ""}`, {
+        method: "POST",
+        body,
+        headers: {
+          ...(isImage ? { "Content-Type": "application/json" } : {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
 
       setProgress(90);
 
       const rawText = await response.text();
-      let data: any = {};
+      let data: Record<string, unknown> = {};
       try {
         data = rawText ? JSON.parse(rawText) : {};
       } catch {
@@ -235,14 +256,9 @@ const PostProject = () => {
         console.log("[PostProject] /analyse body:", data);
       }
       if (!response.ok) {
-        const detail =
-          data?.error ||
-          data?.detail ||
-          (Array.isArray(data?.detail) ? data.detail.map((d: any) => d.msg).join("; ") : null) ||
-          `Analysis failed (${response.status})`;
-        throw new Error(detail);
+        throw new Error(backendErrorMessage(data, response.status));
       }
-      if (data?.error) throw new Error(data.error);
+      if (typeof data.error === "string") throw new Error(data.error);
 
       setResult(data as AnalysisResult);
       setProgress(100);
@@ -255,17 +271,17 @@ const PostProject = () => {
           .eq("id", user.id)
           .maybeSingle();
 
-        await supabase.from("videos" as any).insert({
+        await supabase.from("videos").insert({
           user_id: user.id,
           filename: file.name,
-          analysis_result: data,
+          analysis_result: data as Json,
           status: "draft",
-          trade_category: data.problem_type || data.trade_category || null,
-          description: data.description || data.likely_issue || data.summary || null,
+          trade_category: typeof data.problem_type === "string" ? data.problem_type : typeof data.trade_category === "string" ? data.trade_category : null,
+          description: typeof data.description === "string" ? data.description : typeof data.likely_issue === "string" ? data.likely_issue : typeof data.summary === "string" ? data.summary : null,
           postcode: profile?.postcode || null,
           city: profile?.city || null,
           state: profile?.state || null,
-        } as any);
+        });
       }
 
       toast({
@@ -710,11 +726,11 @@ const PostProject = () => {
                   // Also update local videos table
                   if (user) {
                     await supabase
-                      .from("videos" as any)
-                      .update({ status: "posted" } as any)
+                      .from("videos")
+                      .update({ status: "posted" })
                       .eq("user_id", user.id)
                       .eq("status", "draft")
-                      .order("created_at", { ascending: false } as any)
+                      .order("created_at", { ascending: false })
                       .limit(1);
                   }
                   toast({ title: "Job published!", description: "Contractors can now see and bid on your project." });
