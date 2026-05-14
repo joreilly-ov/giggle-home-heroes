@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Upload, Video, Image as ImageIcon, ArrowLeft, CheckCircle, AlertTriangle, Loader2, X, Wrench, Package } from "lucide-react";
 import { useVertical } from "@/contexts/VerticalContext";
 import TaskBreakdown from "@/components/photo-analyzer/TaskBreakdown";
@@ -98,6 +99,20 @@ const PostProject = () => {
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  type DebugInfo = {
+    timestamp: string;
+    endpoint: string;
+    method: string;
+    requestHeaders: Record<string, string>;
+    requestPayload: Record<string, unknown>;
+    responseStatus?: number;
+    responseHeaders?: Record<string, string>;
+    responseBodyRaw?: string;
+    responseBodyParsed?: unknown;
+    errorMessage?: string;
+  };
+  const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
+  const [debugOpen, setDebugOpen] = useState(false);
   const [posting, setPosting] = useState(false);
   // Post-analysis flow state
   type PostAnalysisStep = "analysis" | "clarifications" | "rfp" | "matches";
