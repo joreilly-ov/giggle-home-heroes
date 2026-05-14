@@ -298,20 +298,50 @@ const PostProject = () => {
               <div
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-border rounded-xl p-12 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all"
+                className="space-y-4"
               >
-                <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-foreground font-medium mb-1">
-                  Drag & drop a photo or video here
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  or click to browse · JPG, PNG, MP4, MOV, WebM · Max 100MB
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => photoInputRef.current?.click()}
+                    className="group flex flex-col items-center justify-center gap-3 border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-primary/60 hover:bg-primary/5 transition-all"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                      <ImageIcon className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-foreground font-semibold">Upload a photo</p>
+                      <p className="text-xs text-muted-foreground mt-1">JPG, PNG or WebP · Max 20MB</p>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => videoInputRef.current?.click()}
+                    className="group flex flex-col items-center justify-center gap-3 border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-primary/60 hover:bg-primary/5 transition-all"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                      <Video className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-foreground font-semibold">Upload a video</p>
+                      <p className="text-xs text-muted-foreground mt-1">MP4, MOV or WebM · Max 30MB</p>
+                    </div>
+                  </button>
+                </div>
+                <p className="text-center text-xs text-muted-foreground">
+                  Or drag & drop a file anywhere in this area
                 </p>
                 <input
-                  ref={fileInputRef}
+                  ref={photoInputRef}
                   type="file"
-                  accept="video/*,image/*"
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <input
+                  ref={videoInputRef}
+                  type="file"
+                  accept="video/*"
                   onChange={handleFileSelect}
                   className="hidden"
                 />
