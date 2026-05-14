@@ -223,10 +223,25 @@ const PostProject = () => {
 
       setProgress(90);
 
-      const data = await response.json();
-      if (import.meta.env.DEV) console.log("[PostProject] API response:", JSON.stringify(data, null, 2));
-
-      if (!response.ok) throw new Error(data?.error || `Analysis failed (${response.status})`);
+      const rawText = await response.text();
+      let data: any = {};
+      try {
+        data = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        data = { error: rawText || `Analysis failed (${response.status})` };
+      }
+      if (import.meta.env.DEV) {
+        console.log("[PostProject] /analyse status:", response.status);
+        console.log("[PostProject] /analyse body:", data);
+      }
+      if (!response.ok) {
+        const detail =
+          data?.error ||
+          data?.detail ||
+          (Array.isArray(data?.detail) ? data.detail.map((d: any) => d.msg).join("; ") : null) ||
+          `Analysis failed (${response.status})`;
+        throw new Error(detail);
+      }
       if (data?.error) throw new Error(data.error);
 
       setResult(data as AnalysisResult);
