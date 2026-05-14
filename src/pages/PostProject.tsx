@@ -188,6 +188,16 @@ const PostProject = () => {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
 
+      const locationFields = !isImage && "geolocation" in navigator
+        ? await new Promise<{ lat: string; lon: string } | null>((resolve) => {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => resolve({ lat: pos.coords.latitude.toString(), lon: pos.coords.longitude.toString() }),
+              () => resolve(null),
+              { timeout: 5000 }
+            );
+          })
+        : null;
+
       const body = isImage
         ? JSON.stringify({
             images: [await fileToPhotoDataUri(file)],
@@ -206,6 +216,10 @@ const PostProject = () => {
             formData.append("file", uploadFile);
             if (description.trim().length >= 10) formData.append("description", description.trim());
             if (tradeCategory && tradeCategory !== "_auto") formData.append("trade_category", tradeCategory);
+            if (locationFields) {
+              formData.append("browser_lat", locationFields.lat);
+              formData.append("browser_lon", locationFields.lon);
+            }
             return formData;
           })();
 
