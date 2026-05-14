@@ -37,6 +37,7 @@ const ConnectReturn = lazy(() => import("./pages/ConnectReturn.tsx"));
 const ConnectRefresh = lazy(() => import("./pages/ConnectRefresh.tsx"));
 const CslbCheck = lazy(() => import("./pages/CslbCheck.tsx"));
 const Convert = lazy(() => import("./pages/Convert.tsx"));
+const Changelog = lazy(() => import("./pages/Changelog.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 const queryClient = new QueryClient();
@@ -149,6 +150,7 @@ const App = () => {
               <Route path="/contractor/connect/return" element={<RequireAuth><ConnectReturn /></RequireAuth>} />
               <Route path="/contractor/connect/refresh" element={<RequireAuth><ConnectRefresh /></RequireAuth>} />
               <Route path="/cslb-check" element={<CslbCheck />} />
+              <Route path="/changelog" element={<Changelog />} />
                         {/* Hidden utility — intentionally not linked from anywhere */}
                         <Route path="/convert" element={<Convert />} />
                         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
