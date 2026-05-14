@@ -834,6 +834,74 @@ const PostProject = () => {
           </div>
         )}
       </main>
+
+      <Dialog open={debugOpen} onOpenChange={setDebugOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Photo analysis debug info</DialogTitle>
+            <DialogDescription>
+              Exact request payload sent to the backend and the response received. Useful for diagnosing 4xx/5xx errors.
+            </DialogDescription>
+          </DialogHeader>
+          {debugInfo ? (
+            <div className="space-y-4 text-xs">
+              <div>
+                <p className="font-semibold mb-1">Endpoint</p>
+                <code className="block bg-muted p-2 rounded break-all">{debugInfo.method} {debugInfo.endpoint}</code>
+                <p className="text-muted-foreground mt-1">at {debugInfo.timestamp}</p>
+              </div>
+              <div>
+                <p className="font-semibold mb-1">Request headers</p>
+                <pre className="bg-muted p-2 rounded overflow-x-auto whitespace-pre-wrap">{JSON.stringify(debugInfo.requestHeaders, null, 2)}</pre>
+              </div>
+              <div>
+                <p className="font-semibold mb-1">Request payload (redacted)</p>
+                <pre className="bg-muted p-2 rounded overflow-x-auto whitespace-pre-wrap">{JSON.stringify(debugInfo.requestPayload, null, 2)}</pre>
+              </div>
+              {debugInfo.responseStatus !== undefined && (
+                <div>
+                  <p className="font-semibold mb-1">Response status</p>
+                  <code className="block bg-muted p-2 rounded">{debugInfo.responseStatus}</code>
+                </div>
+              )}
+              {debugInfo.responseHeaders && (
+                <div>
+                  <p className="font-semibold mb-1">Response headers</p>
+                  <pre className="bg-muted p-2 rounded overflow-x-auto whitespace-pre-wrap">{JSON.stringify(debugInfo.responseHeaders, null, 2)}</pre>
+                </div>
+              )}
+              {debugInfo.responseBodyParsed !== undefined && (
+                <div>
+                  <p className="font-semibold mb-1">Response body (parsed)</p>
+                  <pre className="bg-muted p-2 rounded overflow-x-auto whitespace-pre-wrap">{JSON.stringify(debugInfo.responseBodyParsed, null, 2)}</pre>
+                </div>
+              )}
+              {debugInfo.responseBodyRaw && (
+                <div>
+                  <p className="font-semibold mb-1">Response body (raw)</p>
+                  <pre className="bg-muted p-2 rounded overflow-x-auto whitespace-pre-wrap">{debugInfo.responseBodyRaw}</pre>
+                </div>
+              )}
+              {debugInfo.errorMessage && (
+                <div>
+                  <p className="font-semibold mb-1">Error message</p>
+                  <pre className="bg-destructive/10 text-destructive p-2 rounded overflow-x-auto whitespace-pre-wrap">{debugInfo.errorMessage}</pre>
+                </div>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => navigator.clipboard.writeText(JSON.stringify(debugInfo, null, 2))}
+              >
+                Copy all to clipboard
+              </Button>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No debug info captured yet.</p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
