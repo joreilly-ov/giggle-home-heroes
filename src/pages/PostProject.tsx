@@ -92,19 +92,33 @@ const PostProject = () => {
     if (!loading && !user) navigate("/auth", { replace: true });
   }, [user, loading, navigate]);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0];
-    if (!selected) return;
+  // Backend accepts only these image MIME types (validated by magic bytes server-side)
+  const SUPPORTED_IMAGE_EXTS = ["jpg", "jpeg", "png", "webp"];
+  const SUPPORTED_VIDEO_EXTS = ["mp4", "mov", "webm", "m4v", "quicktime"];
 
-    const isVideo = selected.type.startsWith("video/");
-    const isImage = selected.type.startsWith("image/");
+  const acceptFile = (selected: File): boolean => {
+    const ext = selected.name.split(".").pop()?.toLowerCase() ?? "";
+    const isImage = selected.type.startsWith("image/") || SUPPORTED_IMAGE_EXTS.includes(ext);
+    const isVideo = selected.type.startsWith("video/") || SUPPORTED_VIDEO_EXTS.includes(ext);
+
     if (!isVideo && !isImage) {
       toast({ title: "Invalid file", description: "Please select a video or photo.", variant: "destructive" });
-      return;
+      return false;
     }
+
+    // Block unsupported image formats (HEIC/HEIF from iPhone, GIF, BMP, TIFF, etc.)
+    if (isImage && !SUPPORTED_IMAGE_EXTS.includes(ext)) {
+      toast({
+        title: "Unsupported photo format",
+        description: "Please use JPG, PNG or WebP. iPhone HEIC photos aren't supported — change your camera setting to 'Most Compatible' or convert the file first.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
     if (selected.size > MAX_FILE_SIZE) {
       toast({ title: "File too large", description: "Maximum file size is 100MB.", variant: "destructive" });
-      return;
+      return false;
     }
 
     setFile(selected);
@@ -112,24 +126,18 @@ const PostProject = () => {
     setFileKind(isVideo ? "video" : "image");
     setResult(null);
     setError(null);
+    return true;
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0];
+    if (selected) acceptFile(selected);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const dropped = e.dataTransfer.files[0];
-    if (!dropped) return;
-    const isVideo = dropped.type.startsWith("video/");
-    const isImage = dropped.type.startsWith("image/");
-    if (!isVideo && !isImage) return;
-    if (dropped.size > MAX_FILE_SIZE) {
-      toast({ title: "File too large", description: "Maximum file size is 100MB.", variant: "destructive" });
-      return;
-    }
-    setFile(dropped);
-    setFilePreview(URL.createObjectURL(dropped));
-    setFileKind(isVideo ? "video" : "image");
-    setResult(null);
-    setError(null);
+    if (dropped) acceptFile(dropped);
   };
 
   const clearFile = () => {
