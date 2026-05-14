@@ -15,6 +15,7 @@ import TaskBreakdown from "@/components/photo-analyzer/TaskBreakdown";
 import { ClarificationsStep } from "@/components/post-project/ClarificationsStep";
 import { RfpReviewStep } from "@/components/post-project/RfpReviewStep";
 import { MatchedContractorsStep } from "@/components/post-project/MatchedContractorsStep";
+import { fileToPhotoDataUri } from "@/lib/photo-analysis";
 
 type VideoMetadata = {
   duration_seconds?: number;
@@ -162,6 +163,12 @@ const PostProject = () => {
       const msg = `${isImage ? "Photo" : "Video"} is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Please keep it under ${isImage ? "20" : "30"} MB.`;
       setError(msg);
       toast({ title: "File too large", description: msg, variant: "destructive" });
+      return;
+    }
+    if (isImage && description.trim().length < 10) {
+      const msg = "Please describe the problem in at least 10 characters before analysing a photo.";
+      setError(msg);
+      toast({ title: "Description too short", description: msg, variant: "destructive" });
       return;
     }
     setUploading(true);
