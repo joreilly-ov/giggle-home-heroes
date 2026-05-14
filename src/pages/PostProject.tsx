@@ -119,12 +119,12 @@ const PostProject = () => {
   const [postStep, setPostStep] = useState<PostAnalysisStep>("analysis");
   const [createdJob, setCreatedJob] = useState<Job | null>(null);
 
-  // Per backend flow: /analyse/photos returns job_id. If null, fall back to
-  // POST /jobs with the analysis result. Then PATCH postcode + title so the
-  // RFP step has the context it needs.
+  // Per backend flow: /analyse/photos returns job_id. The fallback POST /jobs
+  // route is not currently advertised by the live backend, so fail clearly
+  // instead of sending a null/legacy id into /jobs/:id/rfp and showing
+  // {"detail":"Not Found"}.
   const ensureJob = async (analysis: AnalysisResult): Promise<Job> => {
-    const candidate = (analysis as Record<string, unknown>).job_id
-      ?? (analysis as Record<string, unknown>).id;
+    const candidate = (analysis as Record<string, unknown>).job_id;
 
     let job: Job;
     if (typeof candidate === "string" && candidate.length > 0) {
@@ -137,7 +137,7 @@ const PostProject = () => {
         updated_at: new Date().toISOString(),
       };
     } else {
-      job = await api.jobs.create(analysis as Record<string, unknown>);
+      throw new Error("Analysis completed, but the backend did not return a job_id. Please ask backend to ensure POST /analyse/photos creates a draft job and returns job_id when called with the user's JWT.");
     }
 
     // Pull postcode from the user's profile and derive a title from the
