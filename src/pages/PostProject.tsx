@@ -48,6 +48,7 @@ type AnalysisResult = {
   required_tools?: string[];
   estimated_parts?: string[];
   materials_components_visible?: string[];
+  job_id?: string | null;
   [key: string]: unknown;
 };
 
@@ -79,6 +80,26 @@ const backendErrorMessage = (data: unknown, status: number) => {
     }).join("; ");
   }
   return `Analysis failed (${status})`;
+};
+
+const readAnalysisText = (analysis: AnalysisResult) =>
+  analysis.description || analysis.likely_issue || analysis.summary || "Vehicle repair job";
+
+const buildFallbackRfp = (analysis: AnalysisResult, notes: Record<string, string> = {}): RfpDocument => {
+  const issue = readAnalysisText(analysis);
+  const tools = analysis.required_tools?.length ? ` Required tools: ${analysis.required_tools.join(", ")}.` : "";
+  const parts = analysis.estimated_parts?.length ? ` Likely parts/materials: ${analysis.estimated_parts.join(", ")}.` : "";
+  const answers = Object.entries(notes)
+    .filter(([, value]) => value.trim())
+    .map(([question, answer]) => `${question}: ${answer}`)
+    .join("\n");
+
+  return {
+    executive_summary: issue,
+    scope_of_work: `${issue}${tools}${parts}${answers ? `\n\nCustomer notes:\n${answers}` : ""}`,
+    cost_estimate: { low: 15000, high: 75000 },
+    permit_required: false,
+  };
 };
 
 const PostProject = () => {
@@ -119,12 +140,11 @@ const PostProject = () => {
   const [postStep, setPostStep] = useState<PostAnalysisStep>("analysis");
   const [createdJob, setCreatedJob] = useState<Job | null>(null);
 
-  // Per backend flow: /analyse/photos returns job_id. The fallback POST /jobs
-  // route is not currently advertised by the live backend, so fail clearly
-  // instead of sending a null/legacy id into /jobs/:id/rfp and showing
-  // {"detail":"Not Found"}.
+  // Per backend flow: /analyse/photos should return job_id. If job creation
+  // failed server-side, keep the user moving by generating a local brief rather
+  // than dead-ending on the project brief button.
   const ensureJob = async (analysis: AnalysisResult): Promise<Job> => {
-    const candidate = (analysis as Record<string, unknown>).job_id;
+    const candidate = analysis.job_id;
 
     let job: Job;
     if (typeof candidate === "string" && candidate.length > 0) {
@@ -137,7 +157,14 @@ const PostProject = () => {
         updated_at: new Date().toISOString(),
       };
     } else {
-      throw new Error("Analysis completed, but the backend did not return a job_id. Please ask backend to ensure POST /analyse/photos creates a draft job and returns job_id when called with the user's JWT.");
+      return {
+        id: "",
+        user_id: user?.id ?? "",
+        status: "draft",
+        analysis_result: analysis as Record<string, unknown>,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
     }
 
     // Pull postcode from the user's profile and derive a title from the
@@ -170,6 +197,18 @@ const PostProject = () => {
       console.warn("[PostProject] PATCH /jobs failed:", err);
       return job;
     }
+  };
+  const generateProjectBrief = async (job: Job, answers: Record<string, string>) => {
+    if (!job.id) {
+      setRfpDoc(buildFallbackRfp(job.analysis_result as AnalysisResult, answers));
+      setPostStep("rfp");
+      toast({ title: "Project brief created", description: "The backend did not return a job ID, so publishing will be available once that is fixed." });
+      return;
+    }
+
+    const rfpRes = await api.rfp.generate(job.id, answers);
+    setRfpDoc(rfpRes.rfp_document);
+    setPostStep("rfp");
   };
   const [rfpDoc, setRfpDoc] = useState<RfpDocument | null>(null);
   const [matchData, setMatchData] = useState<MatchResponse | null>(null);
@@ -822,9 +861,7 @@ const PostProject = () => {
                     try {
                       const job = await ensureJob(result);
                       setCreatedJob(job);
-                      const rfpRes = await api.rfp.generate(job.id, {});
-                      setRfpDoc(rfpRes.rfp_document);
-                      setPostStep("rfp");
+                      await generateProjectBrief(job, {});
                     } catch (err) {
                       toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to create brief", variant: "destructive" });
                     }
@@ -844,9 +881,7 @@ const PostProject = () => {
               <ClarificationsStep
                 questions={result.clarifying_questions}
                 onSubmit={async (answers) => {
-                  const rfpRes = await api.rfp.generate(createdJob.id, answers);
-                  setRfpDoc(rfpRes.rfp_document);
-                  setPostStep("rfp");
+                  await generateProjectBrief(createdJob, answers);
                 }}
               />
             )}
@@ -855,6 +890,10 @@ const PostProject = () => {
               <RfpReviewStep
                 rfp={rfpDoc}
                 onFindContractors={async () => {
+                  if (!createdJob.id) {
+                    toast({ title: "Job not ready", description: "The backend needs to return a job ID before matching garages.", variant: "destructive" });
+                    return;
+                  }
                   const matches = await api.matching.get(createdJob.id);
                   setMatchData(matches);
                   setPostStep("matches");
