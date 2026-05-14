@@ -118,6 +118,26 @@ const PostProject = () => {
   type PostAnalysisStep = "analysis" | "clarifications" | "rfp" | "matches";
   const [postStep, setPostStep] = useState<PostAnalysisStep>("analysis");
   const [createdJob, setCreatedJob] = useState<Job | null>(null);
+
+  // The cars Cloud Run backend does not expose POST /jobs — the job row is
+  // created server-side as part of /analyse and the id is returned in the
+  // analyse response. Pull that id (job_id / id) and synthesize a Job object.
+  const ensureJob = async (analysis: AnalysisResult): Promise<Job> => {
+    const candidate = (analysis as Record<string, unknown>).job_id
+      ?? (analysis as Record<string, unknown>).id;
+    if (typeof candidate === "string" && candidate.length > 0) {
+      return {
+        id: candidate,
+        user_id: user?.id ?? "",
+        status: "draft",
+        analysis_result: analysis as Record<string, unknown>,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+    }
+    // Fallback to the legacy collection endpoint (will 404 on cars backend).
+    return api.jobs.create(analysis as Record<string, unknown>);
+  };
   const [rfpDoc, setRfpDoc] = useState<RfpDocument | null>(null);
   const [matchData, setMatchData] = useState<MatchResponse | null>(null);
 
@@ -743,9 +763,8 @@ const PostProject = () => {
               <div className="flex gap-3">
                 <Button
                   onClick={async () => {
-                    // Create job via API first
                     try {
-                      const job = await api.jobs.create(result as Record<string, unknown>);
+                      const job = await ensureJob(result);
                       setCreatedJob(job);
                       setPostStep("clarifications");
                     } catch (err) {
@@ -768,9 +787,8 @@ const PostProject = () => {
                 <Button
                   onClick={async () => {
                     try {
-                      const job = await api.jobs.create(result as Record<string, unknown>);
+                      const job = await ensureJob(result);
                       setCreatedJob(job);
-                      // Skip clarifications, generate RFP with empty answers
                       const rfpRes = await api.rfp.generate(job.id, {});
                       setRfpDoc(rfpRes.rfp_document);
                       setPostStep("rfp");
