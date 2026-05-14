@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Video, ArrowLeft, CheckCircle, AlertTriangle, Loader2, X, Wrench, Package } from "lucide-react";
+import { Upload, Video, Image as ImageIcon, ArrowLeft, CheckCircle, AlertTriangle, Loader2, X, Wrench, Package } from "lucide-react";
 import { useVertical } from "@/contexts/VerticalContext";
 import TaskBreakdown from "@/components/photo-analyzer/TaskBreakdown";
 import { ClarificationsStep } from "@/components/post-project/ClarificationsStep";
@@ -70,7 +70,8 @@ const PostProject = () => {
   const { categories } = useVertical();
 
   const [file, setFile] = useState<File | null>(null);
-  const [videoPreview, setVideoPreview] = useState<string | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [fileKind, setFileKind] = useState<"video" | "image" | null>(null);
   const [description, setDescription] = useState("");
   const [tradeCategory, setTradeCategory] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -93,8 +94,10 @@ const PostProject = () => {
     const selected = e.target.files?.[0];
     if (!selected) return;
 
-    if (!selected.type.startsWith("video/")) {
-      toast({ title: "Invalid file", description: "Please select a video file.", variant: "destructive" });
+    const isVideo = selected.type.startsWith("video/");
+    const isImage = selected.type.startsWith("image/");
+    if (!isVideo && !isImage) {
+      toast({ title: "Invalid file", description: "Please select a video or photo.", variant: "destructive" });
       return;
     }
     if (selected.size > MAX_FILE_SIZE) {
@@ -103,7 +106,8 @@ const PostProject = () => {
     }
 
     setFile(selected);
-    setVideoPreview(URL.createObjectURL(selected));
+    setFilePreview(URL.createObjectURL(selected));
+    setFileKind(isVideo ? "video" : "image");
     setResult(null);
     setError(null);
   };
@@ -111,18 +115,26 @@ const PostProject = () => {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const dropped = e.dataTransfer.files[0];
-    if (dropped && dropped.type.startsWith("video/")) {
-      setFile(dropped);
-      setVideoPreview(URL.createObjectURL(dropped));
-      setResult(null);
-      setError(null);
+    if (!dropped) return;
+    const isVideo = dropped.type.startsWith("video/");
+    const isImage = dropped.type.startsWith("image/");
+    if (!isVideo && !isImage) return;
+    if (dropped.size > MAX_FILE_SIZE) {
+      toast({ title: "File too large", description: "Maximum file size is 100MB.", variant: "destructive" });
+      return;
     }
+    setFile(dropped);
+    setFilePreview(URL.createObjectURL(dropped));
+    setFileKind(isVideo ? "video" : "image");
+    setResult(null);
+    setError(null);
   };
 
   const clearFile = () => {
     setFile(null);
-    if (videoPreview) URL.revokeObjectURL(videoPreview);
-    setVideoPreview(null);
+    if (filePreview) URL.revokeObjectURL(filePreview);
+    setFilePreview(null);
+    setFileKind(null);
     setDescription("");
     setTradeCategory("");
     setResult(null);
@@ -244,7 +256,7 @@ const PostProject = () => {
                 Show us what needs fixing
               </h2>
               <p className="text-muted-foreground">
-                Record a short video of the problem area. Our AI will analyse it and suggest the right trades and estimated costs.
+                Upload a photo or short video of the problem area. Our AI will analyse it and suggest the right trades and estimated costs.
               </p>
             </div>
 
@@ -257,15 +269,15 @@ const PostProject = () => {
               >
                 <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-foreground font-medium mb-1">
-                  Drag & drop your video here
+                  Drag & drop a photo or video here
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  or click to browse · MP4, MOV, WebM · Max 100MB
+                  or click to browse · JPG, PNG, MP4, MOV, WebM · Max 100MB
                 </p>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="video/*"
+                  accept="video/*,image/*"
                   onChange={handleFileSelect}
                   className="hidden"
                 />
@@ -273,11 +285,19 @@ const PostProject = () => {
             ) : (
               <div className="space-y-4">
                 <div className="relative rounded-xl overflow-hidden bg-secondary">
-                  <video
-                    src={videoPreview!}
-                    controls
-                    className="w-full max-h-[400px] object-contain"
-                  />
+                  {fileKind === "video" ? (
+                    <video
+                      src={filePreview!}
+                      controls
+                      className="w-full max-h-[400px] object-contain"
+                    />
+                  ) : (
+                    <img
+                      src={filePreview!}
+                      alt="Selected preview"
+                      className="w-full max-h-[400px] object-contain"
+                    />
+                  )}
                   <button
                     onClick={clearFile}
                     className="absolute top-3 right-3 bg-background/80 backdrop-blur-sm rounded-full p-1.5 hover:bg-background transition-colors"
@@ -287,7 +307,11 @@ const PostProject = () => {
                 </div>
 
                 <div className="flex items-center gap-3 bg-card border border-border rounded-lg p-4">
-                  <Video className="w-5 h-5 text-primary flex-shrink-0" />
+                  {fileKind === "video" ? (
+                    <Video className="w-5 h-5 text-primary flex-shrink-0" />
+                  ) : (
+                    <ImageIcon className="w-5 h-5 text-primary flex-shrink-0" />
+                  )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
                     <p className="text-xs text-muted-foreground">
@@ -333,7 +357,7 @@ const PostProject = () => {
                     <Progress value={progress} className="h-2" />
                     <p className="text-sm text-muted-foreground flex items-center gap-2">
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Analysing your video — this may take a minute...
+                      Analysing your {fileKind === "image" ? "photo" : "video"} — this may take a minute...
                     </p>
                   </div>
                 )}
@@ -359,7 +383,7 @@ const PostProject = () => {
                       <Loader2 className="w-4 h-4 animate-spin" /> Analysing...
                     </>
                   ) : (
-                    <>Analyse Video</>
+                    <>Analyse {fileKind === "image" ? "Photo" : "Video"}</>
                   )}
                 </Button>
               </div>
