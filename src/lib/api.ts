@@ -193,6 +193,12 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify({ status }),
       }),
+
+    update: (id: string, patch: Record<string, unknown>) =>
+      request<Job>(`/jobs/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(patch),
+      }),
   },
 
   bids: {
