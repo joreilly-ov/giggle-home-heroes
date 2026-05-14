@@ -104,14 +104,14 @@ const TradePhotoAnalyzer = () => {
         images,
         description: description.trim(),
       };
-      if (tradeCategory) payload.trade_category = tradeCategory;
+      if (tradeCategory && tradeCategory !== "_auto") payload.trade_category = tradeCategory;
 
       const { data, error: fnError } = await supabase.functions.invoke("analyse-photos", {
         body: payload,
       });
 
-      if (fnError) throw new Error(fnError.message || "Analysis failed");
       if (data?.error) throw new Error(data.error);
+      if (fnError) throw new Error(fnError.message || "Analysis failed");
 
       setResult(data as AnalysisResult);
       toast({ title: "Analysis complete!", description: `${photos.length} photo(s) processed.` });
