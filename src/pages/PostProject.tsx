@@ -218,7 +218,10 @@ const PostProject = () => {
         } as any);
       }
 
-      toast({ title: "Analysis complete!", description: "Your video has been processed." });
+      toast({
+        title: "Analysis complete!",
+        description: `Your ${fileKind === "image" ? "photo" : "video"} has been processed.`,
+      });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong";
       setError(msg);
