@@ -119,14 +119,16 @@ const PostProject = () => {
   const [postStep, setPostStep] = useState<PostAnalysisStep>("analysis");
   const [createdJob, setCreatedJob] = useState<Job | null>(null);
 
-  // The cars Cloud Run backend does not expose POST /jobs — the job row is
-  // created server-side as part of /analyse and the id is returned in the
-  // analyse response. Pull that id (job_id / id) and synthesize a Job object.
+  // Per backend flow: /analyse/photos returns job_id. If null, fall back to
+  // POST /jobs with the analysis result. Then PATCH postcode + title so the
+  // RFP step has the context it needs.
   const ensureJob = async (analysis: AnalysisResult): Promise<Job> => {
     const candidate = (analysis as Record<string, unknown>).job_id
       ?? (analysis as Record<string, unknown>).id;
+
+    let job: Job;
     if (typeof candidate === "string" && candidate.length > 0) {
-      return {
+      job = {
         id: candidate,
         user_id: user?.id ?? "",
         status: "draft",
@@ -134,9 +136,40 @@ const PostProject = () => {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
+    } else {
+      job = await api.jobs.create(analysis as Record<string, unknown>);
     }
-    // Fallback to the legacy collection endpoint (will 404 on cars backend).
-    return api.jobs.create(analysis as Record<string, unknown>);
+
+    // Pull postcode from the user's profile and derive a title from the
+    // analysis or the description they typed in.
+    let postcode: string | null = null;
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("postcode")
+        .eq("id", user.id)
+        .maybeSingle();
+      postcode = profile?.postcode ?? null;
+    }
+    const titleSource =
+      (typeof analysis.description === "string" && analysis.description) ||
+      (typeof analysis.likely_issue === "string" && analysis.likely_issue) ||
+      (typeof analysis.summary === "string" && analysis.summary) ||
+      description.trim() ||
+      "Repair job";
+    const title = titleSource.slice(0, 120);
+
+    const patch: Record<string, unknown> = { title };
+    if (postcode) patch.postcode = postcode;
+
+    try {
+      const updated = await api.jobs.update(job.id, patch);
+      return updated ?? job;
+    } catch (err) {
+      // Non-fatal — RFP may still work; surface in console for debugging.
+      console.warn("[PostProject] PATCH /jobs failed:", err);
+      return job;
+    }
   };
   const [rfpDoc, setRfpDoc] = useState<RfpDocument | null>(null);
   const [matchData, setMatchData] = useState<MatchResponse | null>(null);
