@@ -87,13 +87,33 @@ const VideoAnalyzer = () => {
 
   const analyseVideo = async () => {
     if (!file) return;
+    // Cloud Run hard cap is 32MB (returns 413 without CORS headers — looks like a network error)
+    const MAX_VIDEO_BYTES = 30 * 1024 * 1024;
+    if (file.size > MAX_VIDEO_BYTES) {
+      const msg = `Video is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Please keep it under 30 MB.`;
+      setError(msg);
+      toast({ title: "File too large", description: msg, variant: "destructive" });
+      return;
+    }
     setUploading(true);
     setProgress(10);
     setError(null);
 
     try {
+      // Some browsers report .mov as application/octet-stream; backend requires a video/* MIME.
+      let uploadFile: File = file;
+      if (!file.type.startsWith("video/")) {
+        const ext = file.name.split(".").pop()?.toLowerCase();
+        const fallbackType =
+          ext === "mov" ? "video/quicktime" :
+          ext === "mp4" ? "video/mp4" :
+          ext === "webm" ? "video/webm" :
+          ext === "m4v" ? "video/mp4" :
+          "video/mp4";
+        uploadFile = new File([file], file.name, { type: fallbackType });
+      }
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", uploadFile);
 
       if (description.trim().length >= 10) {
         formData.append("description", description.trim());

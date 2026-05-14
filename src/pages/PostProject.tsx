@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { api } from "@/lib/api";
 import type { RfpDocument, MatchResponse, Job } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -9,12 +10,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Upload, Video, Image as ImageIcon, ArrowLeft, CheckCircle, AlertTriangle, Loader2, X, Wrench, Package } from "lucide-react";
 import { useVertical } from "@/contexts/VerticalContext";
 import TaskBreakdown from "@/components/photo-analyzer/TaskBreakdown";
 import { ClarificationsStep } from "@/components/post-project/ClarificationsStep";
 import { RfpReviewStep } from "@/components/post-project/RfpReviewStep";
 import { MatchedContractorsStep } from "@/components/post-project/MatchedContractorsStep";
+import { fileToPhotoDataUri } from "@/lib/photo-analysis";
 
 type VideoMetadata = {
   duration_seconds?: number;
@@ -62,11 +65,29 @@ const getUrgencyStyle = (urgency: string) => {
   return URGENCY_STYLES[key] || { bg: "bg-muted text-muted-foreground", label: urgency };
 };
 
+const backendErrorMessage = (data: unknown, status: number) => {
+  const payload = typeof data === "object" && data !== null ? data as Record<string, unknown> : {};
+  if (typeof payload.error === "string") return payload.error;
+  if (typeof payload.detail === "string") return payload.detail;
+  if (Array.isArray(payload.detail)) {
+    return payload.detail.map((item) => {
+      if (typeof item === "object" && item !== null) {
+        const detail = item as Record<string, unknown>;
+        return detail.msg || detail.message || JSON.stringify(detail);
+      }
+      return String(item);
+    }).join("; ");
+  }
+  return `Analysis failed (${status})`;
+};
+
 const PostProject = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const { categories } = useVertical();
 
   const [file, setFile] = useState<File | null>(null);
@@ -78,11 +99,45 @@ const PostProject = () => {
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  type DebugInfo = {
+    timestamp: string;
+    endpoint: string;
+    method: string;
+    requestHeaders: Record<string, string>;
+    requestPayload: Record<string, unknown>;
+    responseStatus?: number;
+    responseHeaders?: Record<string, string>;
+    responseBodyRaw?: string;
+    responseBodyParsed?: unknown;
+    errorMessage?: string;
+  };
+  const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
+  const [debugOpen, setDebugOpen] = useState(false);
   const [posting, setPosting] = useState(false);
   // Post-analysis flow state
   type PostAnalysisStep = "analysis" | "clarifications" | "rfp" | "matches";
   const [postStep, setPostStep] = useState<PostAnalysisStep>("analysis");
   const [createdJob, setCreatedJob] = useState<Job | null>(null);
+
+  // The cars Cloud Run backend does not expose POST /jobs — the job row is
+  // created server-side as part of /analyse and the id is returned in the
+  // analyse response. Pull that id (job_id / id) and synthesize a Job object.
+  const ensureJob = async (analysis: AnalysisResult): Promise<Job> => {
+    const candidate = (analysis as Record<string, unknown>).job_id
+      ?? (analysis as Record<string, unknown>).id;
+    if (typeof candidate === "string" && candidate.length > 0) {
+      return {
+        id: candidate,
+        user_id: user?.id ?? "",
+        status: "draft",
+        analysis_result: analysis as Record<string, unknown>,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+    }
+    // Fallback to the legacy collection endpoint (will 404 on cars backend).
+    return api.jobs.create(analysis as Record<string, unknown>);
+  };
   const [rfpDoc, setRfpDoc] = useState<RfpDocument | null>(null);
   const [matchData, setMatchData] = useState<MatchResponse | null>(null);
 
@@ -90,19 +145,33 @@ const PostProject = () => {
     if (!loading && !user) navigate("/auth", { replace: true });
   }, [user, loading, navigate]);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0];
-    if (!selected) return;
+  // Backend accepts only these image MIME types (validated by magic bytes server-side)
+  const SUPPORTED_IMAGE_EXTS = ["jpg", "jpeg", "png", "webp"];
+  const SUPPORTED_VIDEO_EXTS = ["mp4", "mov", "webm", "m4v", "quicktime"];
 
-    const isVideo = selected.type.startsWith("video/");
-    const isImage = selected.type.startsWith("image/");
+  const acceptFile = (selected: File): boolean => {
+    const ext = selected.name.split(".").pop()?.toLowerCase() ?? "";
+    const isImage = selected.type.startsWith("image/") || SUPPORTED_IMAGE_EXTS.includes(ext);
+    const isVideo = selected.type.startsWith("video/") || SUPPORTED_VIDEO_EXTS.includes(ext);
+
     if (!isVideo && !isImage) {
       toast({ title: "Invalid file", description: "Please select a video or photo.", variant: "destructive" });
-      return;
+      return false;
     }
+
+    // Block unsupported image formats (HEIC/HEIF from iPhone, GIF, BMP, TIFF, etc.)
+    if (isImage && !SUPPORTED_IMAGE_EXTS.includes(ext)) {
+      toast({
+        title: "Unsupported photo format",
+        description: "Please use JPG, PNG or WebP. iPhone HEIC photos aren't supported — change your camera setting to 'Most Compatible' or convert the file first.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
     if (selected.size > MAX_FILE_SIZE) {
       toast({ title: "File too large", description: "Maximum file size is 100MB.", variant: "destructive" });
-      return;
+      return false;
     }
 
     setFile(selected);
@@ -110,24 +179,18 @@ const PostProject = () => {
     setFileKind(isVideo ? "video" : "image");
     setResult(null);
     setError(null);
+    return true;
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0];
+    if (selected) acceptFile(selected);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const dropped = e.dataTransfer.files[0];
-    if (!dropped) return;
-    const isVideo = dropped.type.startsWith("video/");
-    const isImage = dropped.type.startsWith("image/");
-    if (!isVideo && !isImage) return;
-    if (dropped.size > MAX_FILE_SIZE) {
-      toast({ title: "File too large", description: "Maximum file size is 100MB.", variant: "destructive" });
-      return;
-    }
-    setFile(dropped);
-    setFilePreview(URL.createObjectURL(dropped));
-    setFileKind(isVideo ? "video" : "image");
-    setResult(null);
-    setError(null);
+    if (dropped) acceptFile(dropped);
   };
 
   const clearFile = () => {
@@ -144,55 +207,147 @@ const PostProject = () => {
 
   const analyseVideo = async () => {
     if (!file) return;
+    // Cloud Run caps: 32MB hard limit (returns 413 without CORS — surfaces as network error).
+    // Backend caps videos at 32MB and images at 20MB; we use 30MB / 20MB to leave headroom.
+    const isImage = fileKind === "image";
+    const MAX_BYTES = isImage ? 20 * 1024 * 1024 : 30 * 1024 * 1024;
+    if (file.size > MAX_BYTES) {
+      const msg = `${isImage ? "Photo" : "Video"} is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Please keep it under ${isImage ? "20" : "30"} MB.`;
+      setError(msg);
+      toast({ title: "File too large", description: msg, variant: "destructive" });
+      return;
+    }
+    if (isImage && description.trim().length < 10) {
+      const msg = "Please describe the problem in at least 10 characters before analysing a photo.";
+      setError(msg);
+      toast({ title: "Description too short", description: msg, variant: "destructive" });
+      return;
+    }
     setUploading(true);
     setProgress(10);
     setError(null);
+    setDebugInfo(null);
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      if (description.trim().length >= 10) {
-        formData.append("description", description.trim());
-      }
-      if (tradeCategory && tradeCategory !== "_auto") {
-        formData.append("trade_category", tradeCategory);
-      }
-
-      // Try to get browser location
-      if ("geolocation" in navigator) {
-        try {
-          const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 })
-          );
-          formData.append("browser_lat", pos.coords.latitude.toString());
-          formData.append("browser_lon", pos.coords.longitude.toString());
-        } catch {
-          // Location not available, continue without
-        }
-      }
-
       setProgress(30);
 
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
 
-      const response = await fetch(
-        "https://stable-gig-374485351183.europe-west1.run.app/analyse",
-        {
-          method: "POST",
-          body: formData,
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        }
-      );
+      const locationFields = !isImage && "geolocation" in navigator
+        ? await new Promise<{ lat: string; lon: string } | null>((resolve) => {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => resolve({ lat: pos.coords.latitude.toString(), lon: pos.coords.longitude.toString() }),
+              () => resolve(null),
+              { timeout: 5000 }
+            );
+          })
+        : null;
+
+      const body = isImage
+        ? JSON.stringify({
+            images: [await fileToPhotoDataUri(file)],
+            description: description.trim(),
+            ...(tradeCategory && tradeCategory !== "_auto" ? { trade_category: tradeCategory } : {}),
+          })
+        : (() => {
+            // Normalize MIME — some browsers send .mov as application/octet-stream, which the backend rejects.
+            let uploadFile: File = file;
+            if (!file.type.startsWith("video/")) {
+              const ext = file.name.split(".").pop()?.toLowerCase();
+              const fallback = ext === "mov" ? "video/quicktime" : ext === "webm" ? "video/webm" : "video/mp4";
+              uploadFile = new File([file], file.name, { type: fallback });
+            }
+            const formData = new FormData();
+            formData.append("file", uploadFile);
+            if (description.trim().length >= 10) formData.append("description", description.trim());
+            if (tradeCategory && tradeCategory !== "_auto") formData.append("trade_category", tradeCategory);
+            if (locationFields) {
+              formData.append("browser_lat", locationFields.lat);
+              formData.append("browser_lon", locationFields.lon);
+            }
+            return formData;
+          })();
+
+      const endpoint = `https://stable-gig-cars-374485351183.europe-west1.run.app/analyse${isImage ? "/photos" : ""}`;
+      const requestHeaders: Record<string, string> = {
+        ...(isImage ? { "Content-Type": "application/json" } : { "Content-Type": "multipart/form-data (browser-set)" }),
+        ...(token ? { Authorization: `Bearer ${token.slice(0, 12)}…(redacted)` } : {}),
+      };
+
+      // Build a redacted snapshot of the payload for the debug modal
+      let payloadSnapshot: Record<string, unknown>;
+      if (isImage) {
+        const parsed = JSON.parse(body as string) as { images: string[]; description: string; trade_category?: string };
+        payloadSnapshot = {
+          images: parsed.images.map((uri, i) => {
+            const match = /^data:([^;]+);base64,(.*)$/.exec(uri);
+            return {
+              index: i,
+              mime: match?.[1] ?? "(unknown)",
+              base64_length: match?.[2]?.length ?? 0,
+              approx_bytes: match?.[2] ? Math.floor((match[2].length * 3) / 4) : 0,
+              preview: uri.slice(0, 80) + "…",
+            };
+          }),
+          description: parsed.description,
+          description_length: parsed.description.length,
+          trade_category: parsed.trade_category ?? null,
+        };
+      } else {
+        const fd = body as FormData;
+        const fields: Record<string, unknown> = {};
+        fd.forEach((value, key) => {
+          if (value instanceof File) {
+            fields[key] = { filename: value.name, type: value.type, size_bytes: value.size };
+          } else {
+            fields[key] = value;
+          }
+        });
+        payloadSnapshot = fields;
+      }
+
+      const debug: DebugInfo = {
+        timestamp: new Date().toISOString(),
+        endpoint,
+        method: "POST",
+        requestHeaders,
+        requestPayload: payloadSnapshot,
+      };
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        body,
+        headers: {
+          ...(isImage ? { "Content-Type": "application/json" } : {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
 
       setProgress(90);
 
-      const data = await response.json();
-      if (import.meta.env.DEV) console.log("[PostProject] API response:", JSON.stringify(data, null, 2));
-
-      if (!response.ok) throw new Error(data?.error || `Analysis failed (${response.status})`);
-      if (data?.error) throw new Error(data.error);
+      const rawText = await response.text();
+      let data: Record<string, unknown> = {};
+      try {
+        data = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        data = { error: rawText || `Analysis failed (${response.status})` };
+      }
+      const responseHeaders: Record<string, string> = {};
+      response.headers.forEach((v, k) => { responseHeaders[k] = v; });
+      debug.responseStatus = response.status;
+      debug.responseHeaders = responseHeaders;
+      debug.responseBodyRaw = rawText;
+      debug.responseBodyParsed = data;
+      setDebugInfo(debug);
+      if (import.meta.env.DEV) {
+        console.log("[PostProject] /analyse status:", response.status);
+        console.log("[PostProject] /analyse body:", data);
+      }
+      if (!response.ok) {
+        throw new Error(backendErrorMessage(data, response.status));
+      }
+      if (typeof data.error === "string") throw new Error(data.error);
 
       setResult(data as AnalysisResult);
       setProgress(100);
@@ -205,17 +360,17 @@ const PostProject = () => {
           .eq("id", user.id)
           .maybeSingle();
 
-        await supabase.from("videos" as any).insert({
+        await supabase.from("videos").insert({
           user_id: user.id,
           filename: file.name,
-          analysis_result: data,
+          analysis_result: data as Json,
           status: "draft",
-          trade_category: data.problem_type || data.trade_category || null,
-          description: data.description || data.likely_issue || data.summary || null,
+          trade_category: typeof data.problem_type === "string" ? data.problem_type : typeof data.trade_category === "string" ? data.trade_category : null,
+          description: typeof data.description === "string" ? data.description : typeof data.likely_issue === "string" ? data.likely_issue : typeof data.summary === "string" ? data.summary : null,
           postcode: profile?.postcode || null,
           city: profile?.city || null,
           state: profile?.state || null,
-        } as any);
+        });
       }
 
       toast({
@@ -225,6 +380,7 @@ const PostProject = () => {
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong";
       setError(msg);
+      setDebugInfo((prev) => prev ? { ...prev, errorMessage: msg } : { timestamp: new Date().toISOString(), endpoint: "(failed before fetch)", method: "POST", requestHeaders: {}, requestPayload: {}, errorMessage: msg });
       toast({ title: "Analysis failed", description: msg, variant: "destructive" });
     } finally {
       setUploading(false);
@@ -271,20 +427,50 @@ const PostProject = () => {
               <div
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-border rounded-xl p-12 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all"
+                className="space-y-4"
               >
-                <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-foreground font-medium mb-1">
-                  Drag & drop a photo or video here
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  or click to browse · JPG, PNG, MP4, MOV, WebM · Max 100MB
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => photoInputRef.current?.click()}
+                    className="group flex flex-col items-center justify-center gap-3 border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-primary/60 hover:bg-primary/5 transition-all"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                      <ImageIcon className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-foreground font-semibold">Upload a photo</p>
+                      <p className="text-xs text-muted-foreground mt-1">JPG, PNG or WebP · Max 20MB</p>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => videoInputRef.current?.click()}
+                    className="group flex flex-col items-center justify-center gap-3 border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-primary/60 hover:bg-primary/5 transition-all"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                      <Video className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-foreground font-semibold">Upload a video</p>
+                      <p className="text-xs text-muted-foreground mt-1">MP4, MOV or WebM · Max 30MB</p>
+                    </div>
+                  </button>
+                </div>
+                <p className="text-center text-xs text-muted-foreground">
+                  Or drag & drop a file anywhere in this area
                 </p>
                 <input
-                  ref={fileInputRef}
+                  ref={photoInputRef}
                   type="file"
-                  accept="video/*,image/*"
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <input
+                  ref={videoInputRef}
+                  type="file"
+                  accept="video/*"
                   onChange={handleFileSelect}
                   className="hidden"
                 />
@@ -372,11 +558,34 @@ const PostProject = () => {
                 {error && (
                   <div className="flex items-start gap-3 bg-destructive/10 border border-destructive/20 rounded-lg p-4">
                     <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm font-medium text-destructive">Analysis failed</p>
                       <p className="text-sm text-destructive/80">{error}</p>
+                      {debugInfo && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="mt-2"
+                          onClick={() => setDebugOpen(true)}
+                        >
+                          View debug info
+                        </Button>
+                      )}
                     </div>
                   </div>
+                )}
+
+                {debugInfo && !error && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => setDebugOpen(true)}
+                  >
+                    View last request debug info
+                  </Button>
                 )}
 
                 <Button
@@ -554,9 +763,8 @@ const PostProject = () => {
               <div className="flex gap-3">
                 <Button
                   onClick={async () => {
-                    // Create job via API first
                     try {
-                      const job = await api.jobs.create(result as Record<string, unknown>);
+                      const job = await ensureJob(result);
                       setCreatedJob(job);
                       setPostStep("clarifications");
                     } catch (err) {
@@ -579,9 +787,8 @@ const PostProject = () => {
                 <Button
                   onClick={async () => {
                     try {
-                      const job = await api.jobs.create(result as Record<string, unknown>);
+                      const job = await ensureJob(result);
                       setCreatedJob(job);
-                      // Skip clarifications, generate RFP with empty answers
                       const rfpRes = await api.rfp.generate(job.id, {});
                       setRfpDoc(rfpRes.rfp_document);
                       setPostStep("rfp");
@@ -630,11 +837,11 @@ const PostProject = () => {
                   // Also update local videos table
                   if (user) {
                     await supabase
-                      .from("videos" as any)
-                      .update({ status: "posted" } as any)
+                      .from("videos")
+                      .update({ status: "posted" })
                       .eq("user_id", user.id)
                       .eq("status", "draft")
-                      .order("created_at", { ascending: false } as any)
+                      .order("created_at", { ascending: false })
                       .limit(1);
                   }
                   toast({ title: "Job published!", description: "Contractors can now see and bid on your project." });
@@ -645,6 +852,74 @@ const PostProject = () => {
           </div>
         )}
       </main>
+
+      <Dialog open={debugOpen} onOpenChange={setDebugOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Photo analysis debug info</DialogTitle>
+            <DialogDescription>
+              Exact request payload sent to the backend and the response received. Useful for diagnosing 4xx/5xx errors.
+            </DialogDescription>
+          </DialogHeader>
+          {debugInfo ? (
+            <div className="space-y-4 text-xs">
+              <div>
+                <p className="font-semibold mb-1">Endpoint</p>
+                <code className="block bg-muted p-2 rounded break-all">{debugInfo.method} {debugInfo.endpoint}</code>
+                <p className="text-muted-foreground mt-1">at {debugInfo.timestamp}</p>
+              </div>
+              <div>
+                <p className="font-semibold mb-1">Request headers</p>
+                <pre className="bg-muted p-2 rounded overflow-x-auto whitespace-pre-wrap">{JSON.stringify(debugInfo.requestHeaders, null, 2)}</pre>
+              </div>
+              <div>
+                <p className="font-semibold mb-1">Request payload (redacted)</p>
+                <pre className="bg-muted p-2 rounded overflow-x-auto whitespace-pre-wrap">{JSON.stringify(debugInfo.requestPayload, null, 2)}</pre>
+              </div>
+              {debugInfo.responseStatus !== undefined && (
+                <div>
+                  <p className="font-semibold mb-1">Response status</p>
+                  <code className="block bg-muted p-2 rounded">{debugInfo.responseStatus}</code>
+                </div>
+              )}
+              {debugInfo.responseHeaders && (
+                <div>
+                  <p className="font-semibold mb-1">Response headers</p>
+                  <pre className="bg-muted p-2 rounded overflow-x-auto whitespace-pre-wrap">{JSON.stringify(debugInfo.responseHeaders, null, 2)}</pre>
+                </div>
+              )}
+              {debugInfo.responseBodyParsed !== undefined && (
+                <div>
+                  <p className="font-semibold mb-1">Response body (parsed)</p>
+                  <pre className="bg-muted p-2 rounded overflow-x-auto whitespace-pre-wrap">{JSON.stringify(debugInfo.responseBodyParsed, null, 2)}</pre>
+                </div>
+              )}
+              {debugInfo.responseBodyRaw && (
+                <div>
+                  <p className="font-semibold mb-1">Response body (raw)</p>
+                  <pre className="bg-muted p-2 rounded overflow-x-auto whitespace-pre-wrap">{debugInfo.responseBodyRaw}</pre>
+                </div>
+              )}
+              {debugInfo.errorMessage && (
+                <div>
+                  <p className="font-semibold mb-1">Error message</p>
+                  <pre className="bg-destructive/10 text-destructive p-2 rounded overflow-x-auto whitespace-pre-wrap">{debugInfo.errorMessage}</pre>
+                </div>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => navigator.clipboard.writeText(JSON.stringify(debugInfo, null, 2))}
+              >
+                Copy all to clipboard
+              </Button>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No debug info captured yet.</p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
