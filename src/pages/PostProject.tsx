@@ -206,6 +206,7 @@ const PostProject = () => {
     setUploading(true);
     setProgress(10);
     setError(null);
+    setDebugInfo(null);
 
     try {
       setProgress(30);
@@ -248,7 +249,53 @@ const PostProject = () => {
             return formData;
           })();
 
-      const response = await fetch(`https://stable-gig-cars-374485351183.europe-west1.run.app/analyse${isImage ? "/photos" : ""}`, {
+      const endpoint = `https://stable-gig-cars-374485351183.europe-west1.run.app/analyse${isImage ? "/photos" : ""}`;
+      const requestHeaders: Record<string, string> = {
+        ...(isImage ? { "Content-Type": "application/json" } : { "Content-Type": "multipart/form-data (browser-set)" }),
+        ...(token ? { Authorization: `Bearer ${token.slice(0, 12)}…(redacted)` } : {}),
+      };
+
+      // Build a redacted snapshot of the payload for the debug modal
+      let payloadSnapshot: Record<string, unknown>;
+      if (isImage) {
+        const parsed = JSON.parse(body as string) as { images: string[]; description: string; trade_category?: string };
+        payloadSnapshot = {
+          images: parsed.images.map((uri, i) => {
+            const match = /^data:([^;]+);base64,(.*)$/.exec(uri);
+            return {
+              index: i,
+              mime: match?.[1] ?? "(unknown)",
+              base64_length: match?.[2]?.length ?? 0,
+              approx_bytes: match?.[2] ? Math.floor((match[2].length * 3) / 4) : 0,
+              preview: uri.slice(0, 80) + "…",
+            };
+          }),
+          description: parsed.description,
+          description_length: parsed.description.length,
+          trade_category: parsed.trade_category ?? null,
+        };
+      } else {
+        const fd = body as FormData;
+        const fields: Record<string, unknown> = {};
+        fd.forEach((value, key) => {
+          if (value instanceof File) {
+            fields[key] = { filename: value.name, type: value.type, size_bytes: value.size };
+          } else {
+            fields[key] = value;
+          }
+        });
+        payloadSnapshot = fields;
+      }
+
+      const debug: DebugInfo = {
+        timestamp: new Date().toISOString(),
+        endpoint,
+        method: "POST",
+        requestHeaders,
+        requestPayload: payloadSnapshot,
+      };
+
+      const response = await fetch(endpoint, {
         method: "POST",
         body,
         headers: {
@@ -266,6 +313,13 @@ const PostProject = () => {
       } catch {
         data = { error: rawText || `Analysis failed (${response.status})` };
       }
+      const responseHeaders: Record<string, string> = {};
+      response.headers.forEach((v, k) => { responseHeaders[k] = v; });
+      debug.responseStatus = response.status;
+      debug.responseHeaders = responseHeaders;
+      debug.responseBodyRaw = rawText;
+      debug.responseBodyParsed = data;
+      setDebugInfo(debug);
       if (import.meta.env.DEV) {
         console.log("[PostProject] /analyse status:", response.status);
         console.log("[PostProject] /analyse body:", data);
@@ -306,6 +360,7 @@ const PostProject = () => {
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong";
       setError(msg);
+      setDebugInfo((prev) => prev ? { ...prev, errorMessage: msg } : { timestamp: new Date().toISOString(), endpoint: "(failed before fetch)", method: "POST", requestHeaders: {}, requestPayload: {}, errorMessage: msg });
       toast({ title: "Analysis failed", description: msg, variant: "destructive" });
     } finally {
       setUploading(false);
