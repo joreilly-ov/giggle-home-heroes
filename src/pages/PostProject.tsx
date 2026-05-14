@@ -144,13 +144,38 @@ const PostProject = () => {
 
   const analyseVideo = async () => {
     if (!file) return;
+    // Cloud Run caps: 32MB hard limit (returns 413 without CORS — surfaces as network error).
+    // Backend caps videos at 32MB and images at 20MB; we use 30MB / 20MB to leave headroom.
+    const isImage = fileKind === "image";
+    const MAX_BYTES = isImage ? 20 * 1024 * 1024 : 30 * 1024 * 1024;
+    if (file.size > MAX_BYTES) {
+      const msg = `${isImage ? "Photo" : "Video"} is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Please keep it under ${isImage ? "20" : "30"} MB.`;
+      setError(msg);
+      toast({ title: "File too large", description: msg, variant: "destructive" });
+      return;
+    }
     setUploading(true);
     setProgress(10);
     setError(null);
 
     try {
+      // Normalize MIME — some browsers send .mov as application/octet-stream, which the backend rejects.
+      let uploadFile: File = file;
+      const expectedPrefix = isImage ? "image/" : "video/";
+      if (!file.type.startsWith(expectedPrefix)) {
+        const ext = file.name.split(".").pop()?.toLowerCase();
+        const videoFallback =
+          ext === "mov" ? "video/quicktime" :
+          ext === "webm" ? "video/webm" :
+          "video/mp4";
+        const imageFallback =
+          ext === "png" ? "image/png" :
+          ext === "webp" ? "image/webp" :
+          "image/jpeg";
+        uploadFile = new File([file], file.name, { type: isImage ? imageFallback : videoFallback });
+      }
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", uploadFile);
 
       if (description.trim().length >= 10) {
         formData.append("description", description.trim());
