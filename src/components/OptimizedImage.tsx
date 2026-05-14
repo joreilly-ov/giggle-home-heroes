@@ -45,20 +45,12 @@ export function OptimizedImage({
   const [imageSrc, setImageSrc] = useState(src);
   const [failed, setFailed] = useState(false);
 
-  // Generate WebP source if original is JPG/PNG
-  const webpSrc = src.replace(/\.(jpg|jpeg|png)$/i, '.webp');
-  const hasWebP = webpSrc !== src;
-
   return (
     <picture>
-      {/* WebP format for modern browsers — loads faster */}
-      {hasWebP && (
-        <source
-          srcSet={webpSrc}
-          type="image/webp"
-        />
-      )}
-      {/* Fallback to original format */}
+      {/* Note: a <source type="image/webp"> used to be emitted here, but no
+          .webp companions exist in /src/assets, so browsers selected a 404
+          source and rendered nothing. Re-add only when webp files are
+          generated alongside the originals. */}
       <img
         src={imageSrc}
         alt={alt}
@@ -69,10 +61,7 @@ export function OptimizedImage({
         decoding="async" // Non-blocking image decode
         onLoad={onLoad}
         onError={() => {
-          if (!failed && imageSrc !== src) {
-            // If WebP failed, try original
-            setImageSrc(src);
-          } else {
+          if (!failed) {
             setFailed(true);
             onError?.();
           }
