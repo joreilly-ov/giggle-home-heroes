@@ -1,46 +1,49 @@
-# KisX - Home Services Marketplace
+# KisXCars — Car Repair Marketplace (Beta)
 
 **Version: 1.0.2** | **Live app:** https://kisx.lovable.app
 
-A marketplace connecting homeowners with trusted contractors for home repair and improvement projects.
+A car-vertical beta spinoff of the KisX platform. Connects vehicle owners with trusted garages and bodyshops for repair work — bodywork, mechanical, tyres, electrical, windscreen, interior, and general vehicle servicing. Shares the same Cloud Run backend as the parent KisX project.
+
 **Live app:** <https://kisx.lovable.app>
 
 ## What it does
 
-- Homeowners record a short video of their home issue → AI analysis identifies the trade, urgency, and estimated cost → job published to contractors
-- Contractors browse open jobs, read AI summaries (urgency, materials, location), generate task breakdowns, ask clarifying questions, and submit priced bids
-- Homeowner reviews bids, accepts one (all others auto-rejected), tracks work through milestones to completion
-- Escrow-based payments powered by Stripe Connect — funds held until homeowner approves, contractor paid same day
-- Post-job tradesman rating system (Quality · Communication · Cleanliness) gated on escrow release, with admin-only private feedback
-- Push notifications via Web Push API — contractors alerted to new jobs, homeowners alerted to incoming bids
-- **Installable as a native app** — Android via Capacitor (Play Store ready), iOS Capacitor in progress; also installable as a PWA from any browser
+- Vehicle owners snap a photo or record a short video of the damage → AI analysis identifies the repair type, urgency, and estimated cost → job published to garages
+- Garages browse open jobs, read AI summaries (damage type, urgency, materials, location), generate task breakdowns, ask clarifying questions, and submit priced bids
+- Vehicle owner reviews bids, accepts one (all others auto-rejected), tracks work through milestones to completion
+- Escrow-based payments powered by Stripe Connect — funds held until vehicle owner approves, garage paid same day
+- Post-job garage rating system (Quality · Communication · Cleanliness) gated on escrow release, with admin-only private feedback
+- Push notifications via Web Push API — garages alerted to new jobs, vehicle owners alerted to incoming bids
+- **Installable as a native app** — Android via Capacitor (Play Store ready, `com.kisxcars.app`), iOS Capacitor in progress; also installable as a PWA from any browser
 
 ## User roles
 
-**Customers** (`/profile`, `/dashboard`)
+**Vehicle owners** (`/profile`, `/dashboard`)
 
-- Create an account, set location and trade interests
-- Record a video → AI analysis → clarification Q&A → RFP document → matched contractors → publish for bids
-- Review contractor bids (accept / decline), fund escrow, track milestones, release payment on completion
+- Create an account, set location and repair interests (bodywork, mechanical, tyres, etc.)
+- Snap a photo or record a video → AI analysis → clarification Q&A → RFP document → matched garages → publish for bids
+- Review garage bids (accept / decline), fund escrow, track milestones, release payment on completion
 
-**Contractors** (`/contractor/profile/*`)
+**Garages** (`/contractor/profile/*`)
 
-- Onboard via `/contractor/signup` (business info + expertise)
+- Onboard via `/contractor/signup` (business info + areas of expertise)
 - Browse open jobs on the Job Feed, submit priced bids with scope-of-work notes
 - Track bid status, win rate, and pipeline value in the Active Bids dashboard
-- Manage profile settings and license/insurance verification
+- Manage profile settings and licence/insurance verification
 
 ## Tech stack
 
 - **Frontend:** React 18, TypeScript, Vite (SWC compiler)
 - **UI:** shadcn/ui, Tailwind CSS, Radix UI
-- **Backend:** Supabase (Postgres + Auth + Edge Functions)
-- **AI analysis:** Cloud Run endpoint (KisX backend) — called directly from the browser for video, via edge function proxy for photos
+- **Backend:** Supabase (Postgres + Auth + Edge Functions) + shared Cloud Run backend (KisX platform)
+- **Vertical config:** `VerticalContext` fetches `GET /api/vertical` at startup — drives app title, owner/provider labels, and car-specific repair categories (Bodywork, Mechanical, Electrical, Tyres, Windscreen, Interior, General)
+- **AI analysis:** Cloud Run endpoint — called directly from the browser for video/photo uploads
 - **Routing:** React Router v6 (lazy-loaded pages with Suspense)
 - **State:** TanStack React Query (26 hooks with auto-dedup, polling, background refetch)
 - **Error Handling:** ErrorBoundary + RouteLoader suspense fallback
 - **Images:** OptimizedImage component (WebP + lazy loading + async decode)
-- **PWA:** Configured in this repo with `vite-plugin-pwa` (`vite.config.ts`) and `public/push-sw.js`; deployed via Lovable
+- **PWA:** Configured with `vite-plugin-pwa` (`vite.config.ts`) and `public/push-sw.js`; deployed via Lovable
+- **Native app:** Capacitor (`com.kisxcars.app` / "KisXCars") — Android ready, iOS in progress
 - **TypeScript:** Strict mode enabled (noImplicitAny, strictNullChecks, noUnusedLocals, etc.)
 
 ## Local development
