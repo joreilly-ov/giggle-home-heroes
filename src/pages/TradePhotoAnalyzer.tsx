@@ -81,10 +81,6 @@ const TradePhotoAnalyzer = () => {
 
   const analysePhotos = async () => {
     if (photos.length === 0) return;
-    if (description.trim().length < 10) {
-      toast({ title: "Description too short", description: "Please describe the problem in at least 10 characters.", variant: "destructive" });
-      return;
-    }
 
     setAnalysing(true);
     setError(null);
