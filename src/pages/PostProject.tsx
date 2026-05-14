@@ -245,7 +245,7 @@ const PostProject = () => {
       setProgress(90);
 
       const rawText = await response.text();
-      let data: any = {};
+      let data: Record<string, unknown> = {};
       try {
         data = rawText ? JSON.parse(rawText) : {};
       } catch {
@@ -271,17 +271,17 @@ const PostProject = () => {
           .eq("id", user.id)
           .maybeSingle();
 
-        await supabase.from("videos" as any).insert({
+        await supabase.from("videos").insert({
           user_id: user.id,
           filename: file.name,
-          analysis_result: data,
+          analysis_result: data as Json,
           status: "draft",
-          trade_category: data.problem_type || data.trade_category || null,
-          description: data.description || data.likely_issue || data.summary || null,
+          trade_category: typeof data.problem_type === "string" ? data.problem_type : typeof data.trade_category === "string" ? data.trade_category : null,
+          description: typeof data.description === "string" ? data.description : typeof data.likely_issue === "string" ? data.likely_issue : typeof data.summary === "string" ? data.summary : null,
           postcode: profile?.postcode || null,
           city: profile?.city || null,
           state: profile?.state || null,
-        } as any);
+        });
       }
 
       toast({
@@ -726,11 +726,11 @@ const PostProject = () => {
                   // Also update local videos table
                   if (user) {
                     await supabase
-                      .from("videos" as any)
-                      .update({ status: "posted" } as any)
+                      .from("videos")
+                      .update({ status: "posted" })
                       .eq("user_id", user.id)
                       .eq("status", "draft")
-                      .order("created_at", { ascending: false } as any)
+                      .order("created_at", { ascending: false })
                       .limit(1);
                   }
                   toast({ title: "Job published!", description: "Contractors can now see and bid on your project." });
