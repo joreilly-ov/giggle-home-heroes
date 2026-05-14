@@ -140,9 +140,8 @@ const PostProject = () => {
   const [postStep, setPostStep] = useState<PostAnalysisStep>("analysis");
   const [createdJob, setCreatedJob] = useState<Job | null>(null);
 
-  // Per backend flow: /analyse/photos should return job_id. If job creation
-  // failed server-side, keep the user moving by generating a local brief rather
-  // than dead-ending on the project brief button.
+  // Per backend flow, analysis may return a job_id. If it does not, create the
+  // draft job here so the RFP and matching endpoints always have a real job ID.
   const ensureJob = async (analysis: AnalysisResult): Promise<Job> => {
     const candidate = analysis.job_id;
 
@@ -157,14 +156,7 @@ const PostProject = () => {
         updated_at: new Date().toISOString(),
       };
     } else {
-      return {
-        id: "",
-        user_id: user?.id ?? "",
-        status: "draft",
-        analysis_result: analysis as Record<string, unknown>,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      job = await api.jobs.create(analysis as Record<string, unknown>);
     }
 
     // Pull postcode from the user's profile and derive a title from the
