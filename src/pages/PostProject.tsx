@@ -289,12 +289,6 @@ const PostProject = () => {
       toast({ title: "File too large", description: msg, variant: "destructive" });
       return;
     }
-    if (isImage && description.trim().length < 10) {
-      const msg = "Please describe the problem in at least 10 characters before analysing a photo.";
-      setError(msg);
-      toast({ title: "Description too short", description: msg, variant: "destructive" });
-      return;
-    }
     setUploading(true);
     setProgress(10);
     setError(null);
