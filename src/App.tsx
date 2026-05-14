@@ -94,7 +94,7 @@ class ErrorBoundary extends React.Component<
         </div>
       );
     }
-    return this.state.children;
+    return this.props.children;
   }
 }
 

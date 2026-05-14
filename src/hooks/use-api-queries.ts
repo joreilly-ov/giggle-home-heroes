@@ -14,7 +14,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api, Job, Bid, MatchResponse, RfpDocument } from '@/lib/api';
+import { api, Job, Bid, MatchResponse, RfpDocument, JobStatus } from '@/lib/api';
 
 // ─── Jobs Query ────────────────────────────────────────────────────────────
 
@@ -43,7 +43,7 @@ export function useUpdateJobStatus() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ jobId, status }: { jobId: string; status: string }) =>
+    mutationFn: ({ jobId, status }: { jobId: string; status: JobStatus }) =>
       api.jobs.updateStatus(jobId, status),
     onSuccess: (_, { jobId }) => {
       // Invalidate job queries to trigger refetch
@@ -135,7 +135,7 @@ export function useRejectBid() {
 export function useEscrowStatus(jobId: string) {
   return useQuery({
     queryKey: ['escrow', jobId],
-    queryFn: () => api.escrow.status(jobId),
+    queryFn: () => api.escrow.get(jobId),
     staleTime: 15 * 1000,
     gcTime: 5 * 60 * 1000,
     enabled: !!jobId,
@@ -199,7 +199,7 @@ export function useSubmitQuestion() {
   
   return useMutation({
     mutationFn: ({ jobId, question }: { jobId: string; question: string }) =>
-      api.questions.submit(jobId, question),
+      api.questions.ask(jobId, question),
     onSuccess: (_, { jobId }) => {
       queryClient.invalidateQueries({ queryKey: ['questions', jobId] });
     },
@@ -280,7 +280,7 @@ export function useDeleteContractorDocument() {
 export function useVerticalConfig() {
   return useQuery({
     queryKey: ['vertical:config'],
-    queryFn: () => api.vertical.config(),
+    queryFn: () => api.vertical.get(),
     staleTime: 24 * 60 * 60 * 1000, // Cache for 24 hours
     gcTime: 24 * 60 * 60 * 1000,
   });
