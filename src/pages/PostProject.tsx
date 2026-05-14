@@ -538,11 +538,34 @@ const PostProject = () => {
                 {error && (
                   <div className="flex items-start gap-3 bg-destructive/10 border border-destructive/20 rounded-lg p-4">
                     <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm font-medium text-destructive">Analysis failed</p>
                       <p className="text-sm text-destructive/80">{error}</p>
+                      {debugInfo && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="mt-2"
+                          onClick={() => setDebugOpen(true)}
+                        >
+                          View debug info
+                        </Button>
+                      )}
                     </div>
                   </div>
+                )}
+
+                {debugInfo && !error && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => setDebugOpen(true)}
+                  >
+                    View last request debug info
+                  </Button>
                 )}
 
                 <Button
