@@ -261,6 +261,10 @@ const PostProject = () => {
               <p className="text-muted-foreground">
                 Upload a photo or short video of the problem area. Our AI will analyse it and suggest the right trades and estimated costs.
               </p>
+              <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                <span className="rounded-full bg-primary/20 px-1.5 py-0.5 text-[10px] uppercase tracking-wide">New</span>
+                Photos are now supported — upload a JPG or PNG instead of a video
+              </div>
             </div>
 
             {!file ? (
