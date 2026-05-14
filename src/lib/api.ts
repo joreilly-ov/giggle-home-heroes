@@ -2,6 +2,23 @@ import { supabase } from "@/integrations/supabase/client";
 
 const BASE = "https://stable-gig-cars-374485351183.europe-west1.run.app";
 
+function apiErrorMessage(text: string, status: number, method: string, path: string) {
+  let detail = text.trim();
+  try {
+    const payload = JSON.parse(text) as { detail?: unknown; error?: unknown; message?: unknown };
+    const value = payload.error ?? payload.detail ?? payload.message;
+    detail = typeof value === "string" ? value : JSON.stringify(value ?? payload);
+  } catch {
+    // Keep the raw text when the backend did not return JSON.
+  }
+
+  if (status === 404 && detail.toLowerCase() === "not found") {
+    return `Backend endpoint not found: ${method} ${path}`;
+  }
+
+  return detail || `Request failed (${status})`;
+}
+
 async function authHeaders(): Promise<HeadersInit> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
@@ -13,26 +30,28 @@ async function authHeaders(): Promise<HeadersInit> {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = await authHeaders();
+  const method = init?.method ?? "GET";
   const res = await fetch(`${BASE}${path}`, {
     ...init,
     headers: { ...headers, ...(init?.headers ?? {}) },
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(text || `Request failed (${res.status})`);
+    throw new Error(apiErrorMessage(text, res.status, method, path));
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 
 async function publicRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = init?.method ?? "GET";
   const res = await fetch(`${BASE}${path}`, {
     ...init,
     headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(text || `Request failed (${res.status})`);
+    throw new Error(apiErrorMessage(text, res.status, method, path));
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
