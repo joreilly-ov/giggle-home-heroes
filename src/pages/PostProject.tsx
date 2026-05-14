@@ -63,6 +63,13 @@ const getUrgencyStyle = (urgency: string) => {
   return URGENCY_STYLES[key] || { bg: "bg-muted text-muted-foreground", label: urgency };
 };
 
+const backendErrorMessage = (data: any, status: number) => {
+  if (typeof data?.error === "string") return data.error;
+  if (typeof data?.detail === "string") return data.detail;
+  if (Array.isArray(data?.detail)) return data.detail.map((d: any) => d?.msg || d?.message || String(d)).join("; ");
+  return `Analysis failed (${status})`;
+};
+
 const PostProject = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
