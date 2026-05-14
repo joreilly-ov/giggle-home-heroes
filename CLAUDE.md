@@ -1,9 +1,12 @@
-# Claude Code Guide — KisX - Home Services Marketplace
+# Claude Code Guide — KisXCars — Car Repair Marketplace (Beta)
+
+This is the **KisXCars** frontend — a car-vertical beta spinoff of the broader KisX platform. It shares the same Cloud Run backend as the parent project but is scoped exclusively to vehicle repair (bodywork, mechanical, tyres, etc.). The UI terminology is driven by a `VerticalContext` that fetches config from the backend (`GET /api/vertical`) and uses `owner_label: "vehicle owner"` and `provider_label: "garage"` throughout.
 
 ## Repositories
 
-- **Frontend (this repo):** `vaggab0nd/KisX`
+- **Frontend (this repo):** `joreilly-ov/giggle-home-heroes` (fork of `vaggab0nd/giggle-home-heroes`)
 - **Backend (Supabase edge functions & DB):** https://github.com/vaggab0nd/KisX-backend
+- **Upstream parent frontend:** https://github.com/vaggab0nd/giggle-home-heroes
 
 ## Architecture
 
@@ -25,10 +28,10 @@
 ## User role detection
 
 There is no explicit role field. Determine user type by querying:
-- **Contractor:** has a row in `contractors` table where `user_id = user.id`
-- **Customer:** has a row in `profiles` table where `id = user.id`
+- **Garage (provider):** has a row in `contractors` table where `user_id = user.id` — referred to as "garage" in the UI but stored as `contractors` in the DB
+- **Vehicle owner (customer):** has a row in `profiles` table where `id = user.id`
 
-Always check contractor first (see `Auth.tsx` redirect logic).
+Always check garage/contractor first (see `Auth.tsx` redirect logic).
 
 ## Routing conventions
 
@@ -68,7 +71,8 @@ Always check contractor first (see `Auth.tsx` redirect logic).
 ## Key patterns
 
 - ZIP code lookup uses the `zip-lookup` Supabase edge function
-- Trade categories are a shared list used for both customer `interests` and contractor `expertise` (Plumbing, Electrical, Structural, Damp, Roofing, General, HVAC, Painting)
+- **Vertical config** is loaded at startup from `GET /api/vertical` via `VerticalContext` (`src/contexts/VerticalContext.tsx`). It provides `app_title`, `owner_label` ("vehicle owner"), `provider_label` ("garage"), and the category list. A hardcoded fallback is used if the network call fails — categories: Bodywork, Mechanical, Electrical, Tyres, Windscreen, Interior, General.
+- Categories are car-specific and used for both vehicle owner `interests` and garage `expertise` — do **not** hardcode home-trade categories (Plumbing, Painting, etc.) anywhere in this repo
 - Contractor sub-routes use React Router `<Routes>` inside `ContractorProfile.tsx`
 - Customer onboarding sets `setup_complete` in the `user_metadata` table via Supabase
 - Password reset: Supabase appends `#access_token=...&type=recovery` to the redirect URL; `ResetPassword.tsx` listens for the `PASSWORD_RECOVERY` auth event and calls `supabase.auth.updateUser({ password })`
@@ -82,22 +86,22 @@ All job and bid operations go through the Cloud Run backend (`https://stable-gig
 
 | Method | Path | Who can call | Notes |
 |--------|------|-------------|-------|
-| `POST` | `/jobs` | Homeowner | Creates a draft job; body: `{ analysis_result }` |
-| `GET` | `/jobs` | Both | Homeowners see all their jobs; contractors see only `open` ones |
-| `GET` | `/jobs/:id` | Both | Owner sees any status; contractor sees only `open` |
-| `PATCH` | `/jobs/:id` | Homeowner | Body: `{ status }` — server enforces valid transitions |
-| `POST` | `/jobs/:id/bids` | Contractor | Body: `{ amount_pence, note }` |
-| `GET` | `/jobs/:id/bids` | Both | Owner sees all bids + contractor info; contractor sees only their own |
-| `PATCH` | `/jobs/:id/bids/:bidId` | Homeowner | Body: `{ action: "accept" \| "reject" }` — accept atomically rejects all others |
-| `GET` | `/me/bids` | Contractor | All their bids across jobs, includes `job` nested |
+| `POST` | `/jobs` | Vehicle owner | Creates a draft job; body: `{ analysis_result }` |
+| `GET` | `/jobs` | Both | Vehicle owners see all their jobs; garages see only `open` ones |
+| `GET` | `/jobs/:id` | Both | Owner sees any status; garage sees only `open` |
+| `PATCH` | `/jobs/:id` | Vehicle owner | Body: `{ status }` — server enforces valid transitions |
+| `POST` | `/jobs/:id/bids` | Garage | Body: `{ amount_pence, note }` |
+| `GET` | `/jobs/:id/bids` | Both | Owner sees all bids + garage info; garage sees only their own |
+| `PATCH` | `/jobs/:id/bids/:bidId` | Vehicle owner | Body: `{ action: "accept" \| "reject" }` — accept atomically rejects all others |
+| `GET` | `/me/bids` | Garage | All their bids across jobs, includes `job` nested |
 
 ### RFP & Contractor Matching
 
 | Method | Path | Who can call | Notes |
 |--------|------|-------------|-------|
-| `POST` | `/jobs/:id/rfp` | Homeowner | Generates formal RFP document from job + clarification answers |
-| `GET` | `/jobs/:id/contractors/matches` | Homeowner | AI-matched contractors via embedding; fallback to activity match |
-| `POST` | `/me/contractor/embed-profile` | Contractor | Embeds contractor profile for AI matching |
+| `POST` | `/jobs/:id/rfp` | Vehicle owner | Generates formal RFP document from job + clarification answers |
+| `GET` | `/jobs/:id/contractors/matches` | Vehicle owner | AI-matched garages via embedding; fallback to activity match |
+| `POST` | `/me/contractor/embed-profile` | Garage | Embeds garage profile for AI matching |
 
 ### Stripe Connect
 
@@ -105,33 +109,33 @@ All job and bid operations go through the Cloud Run backend (`https://stable-gig
 |--------|------|-------------|-------|
 | `POST` | `/me/contractor/connect-onboard` | Contractor | Returns Stripe onboarding URL; body: `{ return_url, refresh_url }` |
 | `GET` | `/me/contractor/connect-status` | Contractor | Returns `{ connected, charges_enabled, payouts_enabled, details_submitted, account_id }` |
-| `GET` | `/escrow/config` | Homeowner | Returns `{ stripe_publishable_key }` for frontend Stripe init |
+| `GET` | `/escrow/config` | Vehicle owner | Returns `{ stripe_publishable_key }` for frontend Stripe init |
 
 ### Escrow
 
 | Method | Path | Who can call | Notes |
 |--------|------|-------------|-------|
 | `GET` | `/jobs/:id/escrow` | Both | Returns `{ job_escrow_status }` — values: `pending \| held \| funds_released \| refunded` |
-| `POST` | `/jobs/:id/escrow/initiate` | Homeowner | Creates Stripe PaymentIntent; returns `{ client_secret, amount_pence }` |
-| `POST` | `/jobs/:id/escrow/release` | Homeowner | Releases funds to contractor; body: `{ note? }` |
-| `POST` | `/jobs/:id/escrow/refund` | Homeowner | Refunds to homeowner; body: `{ reason? }` |
+| `POST` | `/jobs/:id/escrow/initiate` | Vehicle owner | Creates Stripe PaymentIntent; returns `{ client_secret, amount_pence }` |
+| `POST` | `/jobs/:id/escrow/release` | Vehicle owner | Releases funds to garage; body: `{ note? }` |
+| `POST` | `/jobs/:id/escrow/refund` | Vehicle owner | Refunds to vehicle owner; body: `{ reason? }` |
 
 ### Q&A
 
 | Method | Path | Who can call | Notes |
 |--------|------|-------------|-------|
 | `GET` | `/jobs/:id/questions` | Both | Lists all questions for a job |
-| `POST` | `/jobs/:id/questions` | Contractor | Body: `{ question }` |
-| `PATCH` | `/jobs/:id/questions/:questionId` | Homeowner | Body: `{ answer }` |
+| `POST` | `/jobs/:id/questions` | Garage | Body: `{ question }` |
+| `PATCH` | `/jobs/:id/questions/:questionId` | Vehicle owner | Body: `{ answer }` |
 
 ### Milestones
 
 | Method | Path | Who can call | Notes |
 |--------|------|-------------|-------|
 | `GET` | `/jobs/:id/milestones` | Both | Lists milestones with photos |
-| `POST` | `/jobs/:id/milestones` | Contractor | Body: `{ milestones: [{ title, description?, order_index }] }` |
-| `POST` | `/jobs/:id/milestones/:milestoneId/photos` | Contractor | Body: `{ image_source, note? }`; `?analyse=true` runs AI on the photo |
-| `PATCH` | `/jobs/:id/milestones/:milestoneId` | Homeowner | Body: `{ action: "approve" \| "reject" }` |
+| `POST` | `/jobs/:id/milestones` | Garage | Body: `{ milestones: [{ title, description?, order_index }] }` |
+| `POST` | `/jobs/:id/milestones/:milestoneId/photos` | Garage | Body: `{ image_source, note? }`; `?analyse=true` runs AI on the photo |
+| `PATCH` | `/jobs/:id/milestones/:milestoneId` | Vehicle owner | Body: `{ action: "approve" \| "reject" }` |
 
 ### Push Notifications
 
@@ -156,18 +160,18 @@ All job and bid operations go through the Cloud Run backend (`https://stable-gig
 - `src/lib/api.ts` — typed API client (all auth headers handled here)
 - `src/components/contractor/JobFeed.tsx` — browse open jobs, AI diagnosis display, Q&A, bid submission form
 - `src/components/contractor/ActiveBids.tsx` — bid history, pipeline KPIs (open bids, win rate, pipeline £), inline milestones for accepted bids
-- `src/components/customer/JobBids.tsx` — homeowner bid review (accept / decline)
+- `src/components/customer/JobBids.tsx` — vehicle owner bid review (accept / decline)
 - `src/components/customer/MyProjects.tsx` — lists jobs from `GET /jobs`, status actions, bids panel in sheet
-- `src/pages/PostProject.tsx` — video analysis → clarifications → RFP review → contractor matching → publish
+- `src/pages/PostProject.tsx` — photo/video of vehicle damage → AI analysis → clarifications → RFP review → garage matching → publish
 - `src/components/post-project/ClarificationsStep.tsx` — Q&A clarification step in PostProject flow
 - `src/components/post-project/RfpReviewStep.tsx` — displays AI-generated RFP document before publishing
 - `src/components/post-project/MatchedContractorsStep.tsx` — shows AI-matched contractors before final publish
 - `src/components/escrow/EscrowStatusBanner.tsx` — displays current escrow state (pending/held/released/refunded)
-- `src/components/escrow/EscrowPayment.tsx` — Stripe PaymentElement for homeowner to fund escrow
-- `src/components/escrow/EscrowActions.tsx` — release / refund controls for homeowner
+- `src/components/escrow/EscrowPayment.tsx` — Stripe PaymentElement for vehicle owner to fund escrow
+- `src/components/escrow/EscrowActions.tsx` — release / refund controls for vehicle owner
 - `src/components/escrow/ContractorPayoutCard.tsx` — Stripe Connect payout status for contractor
 - `src/components/milestones/MilestonesCard.tsx` — milestone management with photo upload and AI analysis
-- `src/components/questions/JobQuestions.tsx` — Q&A thread, role-aware (contractor asks / homeowner answers)
+- `src/components/questions/JobQuestions.tsx` — Q&A thread, role-aware (garage asks / vehicle owner answers)
 - `src/components/photo-analyzer/TaskBreakdown.tsx` — AI task breakdown via `analyse-breakdown` edge function
 - `src/components/photo-analyzer/AnalysisResults.tsx` — displays photo analysis output
 - `src/components/photo-analyzer/PhotoGrid.tsx` — multi-photo grid for analysis
@@ -258,7 +262,7 @@ Migrations live in `supabase/migrations/`. When changing the schema, add a new `
 
 | Prop | Type | Notes |
 |------|------|-------|
-| `contractorId` | `string` | UUID of the contractor being reviewed |
+| `contractorId` | `string` | UUID of the garage being reviewed |
 | `jobId` | `string?` | UUID of the completed job (sent in the insert) |
 | `escrowStatus` | `string?` | Form only unlocks when value is `'released'` or `'funds_released'` |
 | `mode` | `'form' \| 'list' \| 'both'` | Default: `'both'` |
@@ -286,7 +290,7 @@ Admins read it directly from `reviews` via service role.
 - The `contractors` table uses `user_id` as the FK to `auth.users`
 - RLS is enabled on `contractors` — users can only read/write their own row
 - Don't redirect to `/profile` for contractors — send them to `/contractor/profile`
-- `reviews` contains `private_feedback` — never expose this to the tradesman; always query `visible_reviews` on the client
+- `reviews` contains `private_feedback` — never expose this to the garage; always query `visible_reviews` on the client
 - The `overall` column in `reviews` is `GENERATED ALWAYS` — do not include it in INSERT payloads
 - `/how-escrow-works` is a placeholder and not yet implemented
 - `analyse-breakdown` uses a Lovable/Gemini API key (`LOVABLE_API_KEY`) — must be set in edge function secrets
