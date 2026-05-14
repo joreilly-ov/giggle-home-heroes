@@ -84,7 +84,7 @@ describe('MyProjects integration (useJobs hook)', () => {
     expect(screen.getByTestId('job-2')).toHaveTextContent('Kitchen renovation');
   });
 
-  it('shows loading state while fetching jobs', () => {
+  it('shows loading state while fetching jobs', async () => {
     const { useJobs } = await import('@/hooks/use-api-queries');
     
     vi.mocked(useJobs).mockReturnValue({
@@ -104,7 +104,7 @@ describe('MyProjects integration (useJobs hook)', () => {
     expect(screen.getByTestId('loading')).toBeInTheDocument();
   });
 
-  it('displays error message when jobs fetch fails', () => {
+  it('displays error message when jobs fetch fails', async () => {
     const { useJobs } = await import('@/hooks/use-api-queries');
     const mockError = new Error('Failed to load jobs');
     
@@ -217,7 +217,7 @@ describe('ActiveBids integration (useMyBids hook)', () => {
     expect(withdrawMock).toHaveBeenCalledWith({ jobId: '1', bidId: 'b1' });
   });
 
-  it('shows withdrawal loading state', () => {
+  it('shows withdrawal loading state', async () => {
     const { useMyBids, useWithdrawBid } = await import('@/hooks/use-api-queries');
     
     vi.mocked(useMyBids).mockReturnValue({
@@ -407,7 +407,7 @@ describe('JobFeed integration (useJobBids hook)', () => {
     });
   });
 
-  it('disables submit button while mutation is pending', () => {
+  it('disables submit button while mutation is pending', async () => {
     const { useJobBids, useSubmitBid } = await import('@/hooks/use-api-queries');
     
     vi.mocked(useJobBids).mockReturnValue({
