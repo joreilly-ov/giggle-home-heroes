@@ -743,9 +743,8 @@ const PostProject = () => {
               <div className="flex gap-3">
                 <Button
                   onClick={async () => {
-                    // Create job via API first
                     try {
-                      const job = await api.jobs.create(result as Record<string, unknown>);
+                      const job = await ensureJob(result);
                       setCreatedJob(job);
                       setPostStep("clarifications");
                     } catch (err) {
@@ -768,9 +767,8 @@ const PostProject = () => {
                 <Button
                   onClick={async () => {
                     try {
-                      const job = await api.jobs.create(result as Record<string, unknown>);
+                      const job = await ensureJob(result);
                       setCreatedJob(job);
-                      // Skip clarifications, generate RFP with empty answers
                       const rfpRes = await api.rfp.generate(job.id, {});
                       setRfpDoc(rfpRes.rfp_document);
                       setPostStep("rfp");
