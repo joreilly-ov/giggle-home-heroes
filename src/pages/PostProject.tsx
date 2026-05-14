@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Upload, Video, Image as ImageIcon, ArrowLeft, CheckCircle, AlertTriangle, Loader2, X, Wrench, Package } from "lucide-react";
 import { useVertical } from "@/contexts/VerticalContext";
 import TaskBreakdown from "@/components/photo-analyzer/TaskBreakdown";
@@ -98,6 +99,20 @@ const PostProject = () => {
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  type DebugInfo = {
+    timestamp: string;
+    endpoint: string;
+    method: string;
+    requestHeaders: Record<string, string>;
+    requestPayload: Record<string, unknown>;
+    responseStatus?: number;
+    responseHeaders?: Record<string, string>;
+    responseBodyRaw?: string;
+    responseBodyParsed?: unknown;
+    errorMessage?: string;
+  };
+  const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
+  const [debugOpen, setDebugOpen] = useState(false);
   const [posting, setPosting] = useState(false);
   // Post-analysis flow state
   type PostAnalysisStep = "analysis" | "clarifications" | "rfp" | "matches";
@@ -191,6 +206,7 @@ const PostProject = () => {
     setUploading(true);
     setProgress(10);
     setError(null);
+    setDebugInfo(null);
 
     try {
       setProgress(30);
@@ -233,7 +249,53 @@ const PostProject = () => {
             return formData;
           })();
 
-      const response = await fetch(`https://stable-gig-cars-374485351183.europe-west1.run.app/analyse${isImage ? "/photos" : ""}`, {
+      const endpoint = `https://stable-gig-cars-374485351183.europe-west1.run.app/analyse${isImage ? "/photos" : ""}`;
+      const requestHeaders: Record<string, string> = {
+        ...(isImage ? { "Content-Type": "application/json" } : { "Content-Type": "multipart/form-data (browser-set)" }),
+        ...(token ? { Authorization: `Bearer ${token.slice(0, 12)}…(redacted)` } : {}),
+      };
+
+      // Build a redacted snapshot of the payload for the debug modal
+      let payloadSnapshot: Record<string, unknown>;
+      if (isImage) {
+        const parsed = JSON.parse(body as string) as { images: string[]; description: string; trade_category?: string };
+        payloadSnapshot = {
+          images: parsed.images.map((uri, i) => {
+            const match = /^data:([^;]+);base64,(.*)$/.exec(uri);
+            return {
+              index: i,
+              mime: match?.[1] ?? "(unknown)",
+              base64_length: match?.[2]?.length ?? 0,
+              approx_bytes: match?.[2] ? Math.floor((match[2].length * 3) / 4) : 0,
+              preview: uri.slice(0, 80) + "…",
+            };
+          }),
+          description: parsed.description,
+          description_length: parsed.description.length,
+          trade_category: parsed.trade_category ?? null,
+        };
+      } else {
+        const fd = body as FormData;
+        const fields: Record<string, unknown> = {};
+        fd.forEach((value, key) => {
+          if (value instanceof File) {
+            fields[key] = { filename: value.name, type: value.type, size_bytes: value.size };
+          } else {
+            fields[key] = value;
+          }
+        });
+        payloadSnapshot = fields;
+      }
+
+      const debug: DebugInfo = {
+        timestamp: new Date().toISOString(),
+        endpoint,
+        method: "POST",
+        requestHeaders,
+        requestPayload: payloadSnapshot,
+      };
+
+      const response = await fetch(endpoint, {
         method: "POST",
         body,
         headers: {
@@ -251,6 +313,13 @@ const PostProject = () => {
       } catch {
         data = { error: rawText || `Analysis failed (${response.status})` };
       }
+      const responseHeaders: Record<string, string> = {};
+      response.headers.forEach((v, k) => { responseHeaders[k] = v; });
+      debug.responseStatus = response.status;
+      debug.responseHeaders = responseHeaders;
+      debug.responseBodyRaw = rawText;
+      debug.responseBodyParsed = data;
+      setDebugInfo(debug);
       if (import.meta.env.DEV) {
         console.log("[PostProject] /analyse status:", response.status);
         console.log("[PostProject] /analyse body:", data);
@@ -291,6 +360,7 @@ const PostProject = () => {
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong";
       setError(msg);
+      setDebugInfo((prev) => prev ? { ...prev, errorMessage: msg } : { timestamp: new Date().toISOString(), endpoint: "(failed before fetch)", method: "POST", requestHeaders: {}, requestPayload: {}, errorMessage: msg });
       toast({ title: "Analysis failed", description: msg, variant: "destructive" });
     } finally {
       setUploading(false);
@@ -468,11 +538,34 @@ const PostProject = () => {
                 {error && (
                   <div className="flex items-start gap-3 bg-destructive/10 border border-destructive/20 rounded-lg p-4">
                     <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm font-medium text-destructive">Analysis failed</p>
                       <p className="text-sm text-destructive/80">{error}</p>
+                      {debugInfo && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="mt-2"
+                          onClick={() => setDebugOpen(true)}
+                        >
+                          View debug info
+                        </Button>
+                      )}
                     </div>
                   </div>
+                )}
+
+                {debugInfo && !error && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => setDebugOpen(true)}
+                  >
+                    View last request debug info
+                  </Button>
                 )}
 
                 <Button
@@ -741,6 +834,74 @@ const PostProject = () => {
           </div>
         )}
       </main>
+
+      <Dialog open={debugOpen} onOpenChange={setDebugOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Photo analysis debug info</DialogTitle>
+            <DialogDescription>
+              Exact request payload sent to the backend and the response received. Useful for diagnosing 4xx/5xx errors.
+            </DialogDescription>
+          </DialogHeader>
+          {debugInfo ? (
+            <div className="space-y-4 text-xs">
+              <div>
+                <p className="font-semibold mb-1">Endpoint</p>
+                <code className="block bg-muted p-2 rounded break-all">{debugInfo.method} {debugInfo.endpoint}</code>
+                <p className="text-muted-foreground mt-1">at {debugInfo.timestamp}</p>
+              </div>
+              <div>
+                <p className="font-semibold mb-1">Request headers</p>
+                <pre className="bg-muted p-2 rounded overflow-x-auto whitespace-pre-wrap">{JSON.stringify(debugInfo.requestHeaders, null, 2)}</pre>
+              </div>
+              <div>
+                <p className="font-semibold mb-1">Request payload (redacted)</p>
+                <pre className="bg-muted p-2 rounded overflow-x-auto whitespace-pre-wrap">{JSON.stringify(debugInfo.requestPayload, null, 2)}</pre>
+              </div>
+              {debugInfo.responseStatus !== undefined && (
+                <div>
+                  <p className="font-semibold mb-1">Response status</p>
+                  <code className="block bg-muted p-2 rounded">{debugInfo.responseStatus}</code>
+                </div>
+              )}
+              {debugInfo.responseHeaders && (
+                <div>
+                  <p className="font-semibold mb-1">Response headers</p>
+                  <pre className="bg-muted p-2 rounded overflow-x-auto whitespace-pre-wrap">{JSON.stringify(debugInfo.responseHeaders, null, 2)}</pre>
+                </div>
+              )}
+              {debugInfo.responseBodyParsed !== undefined && (
+                <div>
+                  <p className="font-semibold mb-1">Response body (parsed)</p>
+                  <pre className="bg-muted p-2 rounded overflow-x-auto whitespace-pre-wrap">{JSON.stringify(debugInfo.responseBodyParsed, null, 2)}</pre>
+                </div>
+              )}
+              {debugInfo.responseBodyRaw && (
+                <div>
+                  <p className="font-semibold mb-1">Response body (raw)</p>
+                  <pre className="bg-muted p-2 rounded overflow-x-auto whitespace-pre-wrap">{debugInfo.responseBodyRaw}</pre>
+                </div>
+              )}
+              {debugInfo.errorMessage && (
+                <div>
+                  <p className="font-semibold mb-1">Error message</p>
+                  <pre className="bg-destructive/10 text-destructive p-2 rounded overflow-x-auto whitespace-pre-wrap">{debugInfo.errorMessage}</pre>
+                </div>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => navigator.clipboard.writeText(JSON.stringify(debugInfo, null, 2))}
+              >
+                Copy all to clipboard
+              </Button>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No debug info captured yet.</p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
