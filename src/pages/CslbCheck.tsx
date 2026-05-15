@@ -3,6 +3,7 @@ import { Search, ShieldCheck, ShieldAlert, Loader2, FileText } from "lucide-reac
 import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import SEO from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -205,6 +206,11 @@ export default function CslbCheck() {
 
   return (
     <>
+      <SEO
+        title="CSLB Licence Check — Verify California Contractors"
+        description="Look up California contractor licences, workers' compensation coverage, and bond status directly from CSLB data, free on KisXCars."
+        path="/cslb-check"
+      />
       <Navbar />
       <main className="min-h-screen bg-background pt-24 pb-16">
         <div className="container max-w-4xl mx-auto px-4">
