@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://trustedcontractors.online/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://trustedcontractors.online/about</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://trustedcontractors.online/contact</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://trustedcontractors.online/browse-contractors</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://trustedcontractors.online/photo-analyzer</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://trustedcontractors.online/video-analyzer</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://trustedcontractors.online/ai-bidding-tools</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://trustedcontractors.online/same-day-payments</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://trustedcontractors.online/cslb-check</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://trustedcontractors.online/contractor-signup</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://trustedcontractors.online/install</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://trustedcontractors.online/changelog</loc><changefreq>weekly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://trustedcontractors.online/privacy</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://trustedcontractors.online/terms</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+</urlset>
