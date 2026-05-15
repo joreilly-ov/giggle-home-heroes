@@ -1,10 +1,6 @@
 {
-	"appId": "com.gigglehomepros.app",
-	"appName": "Giggle Home Pros",
+	"appId": "com.kisxcars.app",
+	"appName": "KisXCars",
 	"webDir": "dist",
-	"server": {
-		"url": "http://192.168.0.152:5173",
-		"cleartext": true
-	},
 	"packageClassList": []
 }
