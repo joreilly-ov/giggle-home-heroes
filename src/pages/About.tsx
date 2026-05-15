@@ -1,8 +1,14 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import SEO from "@/components/SEO";
 
 const About = () => (
   <div className="min-h-screen flex flex-col page-bg">
+    <SEO
+      title="About KisXCars — AI repair marketplace for drivers"
+      description="Meet the team behind KisXCars: AI-powered diagnostics, verified garages, and escrow-protected payments built to make car repair fair and transparent."
+      path="/about"
+    />
     <Navbar variant="solid" />
     <main className="flex-1 max-w-3xl mx-auto px-4 py-20">
       <h1 className="text-4xl font-extrabold font-heading text-foreground mb-6">About KisXCars</h1>

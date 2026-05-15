@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
+import SEO from "@/components/SEO";
 import Footer from "@/components/Footer";
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
@@ -123,6 +124,11 @@ const stats = [
 
 const AIBiddingTools = () => (
   <div className="min-h-screen flex flex-col page-bg">
+    <SEO
+      title="AI Bidding Tools for Garages — KisXCars"
+      description="Win more vehicle repair work with AI-assisted bid drafting, photo diagnostics, and instant quote breakdowns built for busy garages."
+      path="/ai-bidding-tools"
+    />
     <Navbar variant="solid" />
 
     {/* Hero */}

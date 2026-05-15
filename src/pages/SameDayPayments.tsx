@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import SEO from "@/components/SEO";
 
 const paymentSteps = [
   {
@@ -125,6 +126,11 @@ const trustItems = [
 
 const SameDayPayments = () => (
   <div className="min-h-screen flex flex-col page-bg">
+    <SEO
+      title="Same-Day Payments & Escrow — KisXCars"
+      description="See how KisXCars escrow holds funds securely and pays your garage the same day a job completes — protection for drivers, fast payouts for garages."
+      path="/same-day-payments"
+    />
     <Navbar variant="solid" />
 
     {/* Hero */}
