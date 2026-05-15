@@ -911,7 +911,7 @@ const PostProject = () => {
         )}
       </main>
 
-      <Dialog open={debugOpen} onOpenChange={setDebugOpen}>
+      <Dialog open={debugOpen && import.meta.env.DEV} onOpenChange={setDebugOpen}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Photo analysis debug info</DialogTitle>
