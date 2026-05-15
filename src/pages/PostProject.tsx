@@ -619,7 +619,7 @@ const PostProject = () => {
                     <div className="flex-1">
                       <p className="text-sm font-medium text-destructive">Analysis failed</p>
                       <p className="text-sm text-destructive/80">{error}</p>
-                      {debugInfo && (
+                      {debugInfo && import.meta.env.DEV && (
                         <Button
                           type="button"
                           variant="outline"
@@ -634,7 +634,7 @@ const PostProject = () => {
                   </div>
                 )}
 
-                {debugInfo && !error && (
+                {debugInfo && !error && import.meta.env.DEV && (
                   <Button
                     type="button"
                     variant="ghost"
@@ -911,7 +911,7 @@ const PostProject = () => {
         )}
       </main>
 
-      <Dialog open={debugOpen} onOpenChange={setDebugOpen}>
+      <Dialog open={debugOpen && import.meta.env.DEV} onOpenChange={setDebugOpen}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Photo analysis debug info</DialogTitle>
