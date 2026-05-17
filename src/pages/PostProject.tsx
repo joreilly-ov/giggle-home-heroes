@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Upload, Video, Image as ImageIcon, ArrowLeft, CheckCircle, AlertTriangle, Loader2, X, Wrench, Package } from "lucide-react";
 import { useVertical } from "@/contexts/VerticalContext";
+import { useIsAdmin } from "@/hooks/use-is-admin";
 import TaskBreakdown from "@/components/photo-analyzer/TaskBreakdown";
 import { ClarificationsStep } from "@/components/post-project/ClarificationsStep";
 import { RfpReviewStep } from "@/components/post-project/RfpReviewStep";
