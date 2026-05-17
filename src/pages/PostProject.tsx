@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Upload, Video, Image as ImageIcon, ArrowLeft, CheckCircle, AlertTriangle, Loader2, X, Wrench, Package } from "lucide-react";
 import { useVertical } from "@/contexts/VerticalContext";
+import { useIsAdmin } from "@/hooks/use-is-admin";
 import TaskBreakdown from "@/components/photo-analyzer/TaskBreakdown";
 import { ClarificationsStep } from "@/components/post-project/ClarificationsStep";
 import { RfpReviewStep } from "@/components/post-project/RfpReviewStep";
@@ -110,6 +111,8 @@ const PostProject = () => {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const { categories } = useVertical();
+  const { isAdmin } = useIsAdmin();
+  const canSeeDebug = import.meta.env.DEV && isAdmin;
 
   const [file, setFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
@@ -619,7 +622,7 @@ const PostProject = () => {
                     <div className="flex-1">
                       <p className="text-sm font-medium text-destructive">Analysis failed</p>
                       <p className="text-sm text-destructive/80">{error}</p>
-                      {debugInfo && import.meta.env.DEV && (
+                      {debugInfo && canSeeDebug && (
                         <Button
                           type="button"
                           variant="outline"
@@ -634,7 +637,7 @@ const PostProject = () => {
                   </div>
                 )}
 
-                {debugInfo && !error && import.meta.env.DEV && (
+                {debugInfo && !error && canSeeDebug && (
                   <Button
                     type="button"
                     variant="ghost"
@@ -911,7 +914,7 @@ const PostProject = () => {
         )}
       </main>
 
-      <Dialog open={debugOpen && import.meta.env.DEV} onOpenChange={setDebugOpen}>
+      <Dialog open={debugOpen && canSeeDebug} onOpenChange={setDebugOpen}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Photo analysis debug info</DialogTitle>
