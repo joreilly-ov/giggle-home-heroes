@@ -106,17 +106,17 @@ BEGIN
                                    license_number, insurance_details, created_at, updated_at)
   VALUES
     (v_c1, v_g1,
-     'TEST Fast Fix Autos', 'SW1A 1AA', '07700 900001',
+     'TEST Fast Fix Autos', '90210', '555-000-0001',
      ARRAY['Bodywork', 'Interior']::text[],
      'TEST-LIC-FF-001', 'TEST — Fakewell Insurance Co, policy #FF-2024',
      now() - interval '30 days', now()),
     (v_c2, v_g2,
-     'TEST DriveWell Motors', 'E1 6RF', '07700 900002',
+     'TEST DriveWell Motors', '10001', '555-000-0002',
      ARRAY['Mechanical', 'General']::text[],
      'TEST-LIC-DW-002', 'TEST — Fakewell Insurance Co, policy #DW-2024',
      now() - interval '25 days', now()),
     (v_c3, v_g3,
-     'TEST Quickspark Electrics', 'N1 9GU', '07700 900003',
+     'TEST Quickspark Electrics', '60601', '555-000-0003',
      ARRAY['Electrical', 'Mechanical']::text[],
      'TEST-LIC-QS-003', 'TEST — Fakewell Insurance Co, policy #QS-2024',
      now() - interval '20 days', now())
@@ -128,15 +128,15 @@ BEGIN
   VALUES
     (v_o1, 'test-alice@kisxcars.test', 'TEST Alice',
      ARRAY['Bodywork', 'Mechanical']::text[],
-     'SW1A 1AA', '1 Test Street', 'London', 'England',
+     '90210', '1 Test Street', 'Beverly Hills', 'CA',
      now() - interval '28 days'),
     (v_o2, 'test-bob@kisxcars.test', 'TEST Bob',
      ARRAY['Tyres', 'Windscreen']::text[],
-     'E1 6RF', '2 Test Road', 'London', 'England',
+     '10001', '2 Test Road', 'New York', 'NY',
      now() - interval '22 days'),
     (v_o3, 'test-carol@kisxcars.test', 'TEST Carol',
      ARRAY['Electrical', 'Interior']::text[],
-     'N1 9GU', '3 Test Avenue', 'London', 'England',
+     '60601', '3 Test Avenue', 'Chicago', 'IL',
      now() - interval '18 days')
   ON CONFLICT (id) DO NOTHING;
 
