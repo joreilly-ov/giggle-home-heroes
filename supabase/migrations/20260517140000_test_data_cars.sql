@@ -77,25 +77,26 @@ BEGIN
   ON CONFLICT (id) DO NOTHING;
 
   -- ── 3. Auth identities (required for email/password sign-in in GoTrue) ────
-  INSERT INTO auth.identities (id, user_id, identity_data, provider,
+  -- provider_id = email address for the email provider (NOT NULL in newer GoTrue)
+  INSERT INTO auth.identities (id, provider_id, user_id, identity_data, provider,
                                 last_sign_in_at, created_at, updated_at)
   VALUES
-    (gen_random_uuid(), v_g1,
+    (gen_random_uuid(), 'test-fastfix@kisxcars.test', v_g1,
      json_build_object('sub', v_g1::text, 'email', 'test-fastfix@kisxcars.test')::jsonb,
      'email', now(), now(), now()),
-    (gen_random_uuid(), v_g2,
+    (gen_random_uuid(), 'test-drivewell@kisxcars.test', v_g2,
      json_build_object('sub', v_g2::text, 'email', 'test-drivewell@kisxcars.test')::jsonb,
      'email', now(), now(), now()),
-    (gen_random_uuid(), v_g3,
+    (gen_random_uuid(), 'test-quickspark@kisxcars.test', v_g3,
      json_build_object('sub', v_g3::text, 'email', 'test-quickspark@kisxcars.test')::jsonb,
      'email', now(), now(), now()),
-    (gen_random_uuid(), v_o1,
+    (gen_random_uuid(), 'test-alice@kisxcars.test', v_o1,
      json_build_object('sub', v_o1::text, 'email', 'test-alice@kisxcars.test')::jsonb,
      'email', now(), now(), now()),
-    (gen_random_uuid(), v_o2,
+    (gen_random_uuid(), 'test-bob@kisxcars.test', v_o2,
      json_build_object('sub', v_o2::text, 'email', 'test-bob@kisxcars.test')::jsonb,
      'email', now(), now(), now()),
-    (gen_random_uuid(), v_o3,
+    (gen_random_uuid(), 'test-carol@kisxcars.test', v_o3,
      json_build_object('sub', v_o3::text, 'email', 'test-carol@kisxcars.test')::jsonb,
      'email', now(), now(), now())
   ON CONFLICT DO NOTHING;
