@@ -111,6 +111,8 @@ const PostProject = () => {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const { categories } = useVertical();
+  const { isAdmin } = useIsAdmin();
+  const canSeeDebug = import.meta.env.DEV && isAdmin;
 
   const [file, setFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
