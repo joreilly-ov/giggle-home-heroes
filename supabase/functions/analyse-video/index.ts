@@ -63,10 +63,24 @@ serve(async (req) => {
       headers: { 'Authorization': authHeader },
     });
 
-    const data = await response.json();
+    let data: unknown;
+    try {
+      data = await response.json();
+    } catch {
+      data = { error: `Analysis service returned an unexpected response (${response.status})` };
+    }
+
+    if (!response.ok) {
+      const errorMsg = (data as Record<string, unknown>)?.error as string
+        || `Analysis service error (${response.status})`;
+      return new Response(JSON.stringify({ error: errorMsg }), {
+        status: response.status,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     return new Response(JSON.stringify(data), {
-      status: response.status,
+      status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {

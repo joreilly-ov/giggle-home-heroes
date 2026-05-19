@@ -61,7 +61,7 @@ serve(async (req) => {
       const errorMsg = (data as Record<string, unknown>)?.error as string
         || `Analysis service error (${response.status})`;
       return new Response(JSON.stringify({ error: errorMsg }), {
-        status: 200,
+        status: response.status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
