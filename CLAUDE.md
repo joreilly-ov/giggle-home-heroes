@@ -22,7 +22,8 @@ This is the **KisXCars** frontend — a car-vertical beta spinoff of the broader
 - Camera access for video recording must be requested gracefully — iOS requires HTTPS (satisfied in production)
 - The video upload flow (`PostProject.tsx`) calls Cloud Run directly to avoid edge function payload/timeout limits
 - **Capacitor dev mode:** `capacitor.config.ts` has a `server.url` pointing to `http://192.168.0.152:5173` (local WiFi dev). **Remove the `server` block before building a release APK/IPA** — otherwise the app tries to reach that local network.
-- **Capacitor branding:** `capacitor.config.ts` uses `com.kisxcars.app` / "KisXCars". The `android/` native project folder may still reference the old `com.gigglehomepros.app` bundle ID — verify and sync before Play Store submission.
+- **Capacitor branding:** `capacitor.config.ts` uses `com.kisxcars.app` / "KisXCars". Both `android/` and `ios/` native projects are branded KisXCars — verify this matches Play Store / App Store listings before release submission.
+- **Both iOS and Android have working debug builds.** The `ios/` Xcode project (`ios/App/App.xcodeproj`) is fully initialised with KisXCars icons and splash screens. Use `npx cap sync ios && npx cap open ios` to open in Xcode, then run on a simulator or device.
 - **Push notifications:** implemented via Web Push API (`src/hooks/use-push-notifications.ts`). VAPID key fetched from Cloud Run (`/notifications/vapid-public-key`). iOS only works when installed as a PWA (not in Safari). Shown in `NotificationSettings` for both roles.
 
 ## User role detection
@@ -32,6 +33,8 @@ There is no explicit role field. Determine user type by querying:
 - **Vehicle owner (customer):** has a row in `profiles` table where `id = user.id`
 
 Always check garage/contractor first (see `Auth.tsx` redirect logic).
+
+**Admin role:** a separate `user_roles` table stores explicit platform roles (`admin`, `moderator`, `user`). Check admin status via the `has_role` RPC or the `useIsAdmin()` hook (`src/hooks/use-is-admin.ts`) — never trust client-side storage for role-gating.
 
 ## Routing conventions
 
@@ -62,6 +65,8 @@ Always check garage/contractor first (see `Auth.tsx` redirect logic).
 | `/same-day-payments` | SameDayPayments | Same-day payments marketing page (fully built) |
 | `/how-escrow-works` | HowEscrowWorks | Escrow explainer — placeholder, not yet built |
 | `/cslb-check` | CslbCheck | CSLB contractor license verification lookup tool |
+| `/changelog` | Changelog | Backend changelog — manually curated entries in `src/data/changelog.ts` |
+| `/convert` | Convert | Hidden utility — Spotify CSV → Apple Music XML converter. Not linked anywhere. |
 | `/about` | About | About page |
 | `/contact` | Contact | Contact page |
 | `/privacy` | Privacy | Privacy policy |
@@ -77,6 +82,9 @@ Always check garage/contractor first (see `Auth.tsx` redirect logic).
 - Customer onboarding sets `setup_complete` in the `user_metadata` table via Supabase
 - Password reset: Supabase appends `#access_token=...&type=recovery` to the redirect URL; `ResetPassword.tsx` listens for the `PASSWORD_RECOVERY` auth event and calls `supabase.auth.updateUser({ password })`
 - Jobs/bids lifecycle is centered on the Cloud Run jobs API (`src/lib/api.ts`), while some legacy compatibility paths still read/write `videos`
+- **Photo analysis** — shared validation/encoding logic lives in `src/lib/photo-analysis.ts`. Supported formats: JPG, PNG, WebP (HEIC is not supported — users are told explicitly). Max file size: 20 MB. `fileToPhotoDataUri()` validates MIME type and base64 integrity before upload.
+- **Fallback RFP** — if the backend `/jobs/:id/rfp` call fails, `PostProject.tsx` generates a client-side RFP from the analysis result using `buildFallbackRfp()` so the flow never dead-ends
+- **Debug modal** in `TradePhotoAnalyzer` / `PostProject` — shows raw API request/response. Gated to admin role in production via `useIsAdmin()`; visible to all in development
 
 ## Bidding API (Cloud Run)
 
@@ -157,7 +165,7 @@ All job and bid operations go through the Cloud Run backend (`https://stable-gig
 **Job status lifecycle:** `draft → open → awarded → in_progress → completed | cancelled`
 
 **Frontend components:**
-- `src/lib/api.ts` — typed API client (all auth headers handled here)
+- `src/lib/api.ts` — typed API client (all auth headers handled here). Key method aliases: `api.escrow.get()` (was `.status()`), `api.questions.ask()` (was `.submit()`), `api.vertical.get()` (was `.config()`), `api.jobs.update()` (new — PATCH with arbitrary fields)
 - `src/components/contractor/JobFeed.tsx` — browse open jobs, AI diagnosis display, Q&A, bid submission form
 - `src/components/contractor/ActiveBids.tsx` — bid history, pipeline KPIs (open bids, win rate, pipeline £), inline milestones for accepted bids
 - `src/components/customer/JobBids.tsx` — vehicle owner bid review (accept / decline)
@@ -183,6 +191,10 @@ All job and bid operations go through the Cloud Run backend (`https://stable-gig
 - `src/components/customer/CustomerSidebar.tsx` — navigation sidebar for customer dashboard
 - `src/components/SplashScreen.tsx` — startup splash screen shown briefly before the app renders
 - `src/hooks/use-push-notifications.ts` — VAPID subscription lifecycle hook
+- `src/hooks/use-is-admin.ts` — server-side admin check via `has_role` RPC; returns `{ isAdmin, loading }`
+- `src/lib/photo-analysis.ts` — shared photo validation and base64 encoding (`fileToPhotoDataUri`, `isSupportedPhotoForAnalysis`, `getSupportedPhotoMimeType`)
+- `src/data/changelog.ts` — manually curated backend changelog entries displayed at `/changelog`
+- `src/pages/Changelog.tsx` — changelog page
 
 ## Supabase edge functions
 
@@ -208,9 +220,9 @@ npm run build      # Production build → dist/
 **Capacitor (after build):**
 ```sh
 npx cap sync android   # Copy dist/ into the Android project
-npx cap open android   # Open in Android Studio
-npx cap sync ios       # (iOS not yet set up)
-npx cap open ios       # Opens ios/App/App.xcworkspace in Xcode
+npx cap open android   # Open in Android Studio (debug builds working)
+npx cap sync ios       # Copy dist/ into the iOS project
+npx cap open ios       # Opens ios/App/App.xcworkspace in Xcode (debug builds working)
 ```
 
 ## Testing
@@ -223,17 +235,21 @@ Tests live in `src/test/`. Run with `npm run test`.
 | `ReviewMediator.test.tsx` | Escrow gate (all locked states, both unlock states), submit button state, validation, field presence, live overall score |
 | `auth-routing.test.tsx` | Post-login redirects: contractor → `/contractor/profile`, complete profile → `/dashboard`, incomplete → `/profile`, `?next=` param, open-redirect guard |
 | `seed-rpc-permissions.test.ts` | Verifies that `seed_insert_contractor` and `seed_insert_review` RPCs are not callable by anon/authenticated roles |
+| `scheduled-db-seed.test.ts` | Unit tests for the scheduled seed script helpers (`signIn`, `cloudRunRequest`, seed data pools) |
+| `use-api-queries.test.ts` | React Query hook wrappers — mutation shapes, query key correctness |
+| `component-integration.test.tsx` | Component-level integration tests |
 | `example.test.ts` | Framework smoke test (placeholder) |
 
 ## Database schema
 
 | Table / View | Key columns | Notes |
 |---|---|---|
-| `profiles` | `id` (FK → auth.users), `email`, `interests[]` | `id` not `user_id` |
+| `profiles` | `id` (FK → auth.users), `email`, `full_name`, `interests[]`, `postcode` (5-digit US ZIP), `road_address`, `city`, `state` | `id` not `user_id`; postcode has a check constraint enforcing 5-digit ZIP format |
 | `contractors` | `user_id` (FK → auth.users), `business_name`, `postcode`, `phone`, `expertise[]`, `license_number`, `insurance_details` | RLS enabled — users can only read/write their own row |
-| `user_metadata` | `user_id`, `setup_complete`, `username`, `bio`, `trade_interests` | Extra customer fields |
-| `reviews` | `contractor_id`, `job_id`, `rating_quality`, `rating_communication`, `rating_cleanliness`, `overall` (GENERATED), `comment`, `private_feedback` | Never include `overall` in INSERT payloads |
+| `user_metadata` | `id` (FK → auth.users), `setup_complete`, `username`, `bio`, `trade_interests` | Extra customer fields; `id` column (not `user_id`) |
+| `reviews` | `contractor_id`, `job_id`, `rating_quality`, `rating_communication`, `rating_cleanliness`, `overall` (GENERATED), `comment`, `private_feedback` | Never include `overall` in INSERT payloads; `reviewer_id` has no FK constraint |
 | `visible_reviews` | View of `reviews` excluding `private_feedback` | SELECT granted to `authenticated` |
+| `user_roles` | `user_id` (FK → auth.users), `role` (enum: `admin \| moderator \| user`) | RLS-protected; check via `has_role(_user_id, _role)` RPC or `useIsAdmin()` hook |
 
 ## Database migrations
 
@@ -253,6 +269,25 @@ Migrations live in `supabase/migrations/`. When changing the schema, add a new `
 | `20260320184051_034f0f70-…` | Seed mock review data for existing contractors |
 | `20260330190335_d8eb5044-…` | Tighten `reviews` RLS (owner-scoped SELECT); add `usage_log` RLS policies; fix `set_updated_at` function search_path |
 | `20260425120900_revoke_seed_rpc_execute.sql` | Revoke EXECUTE on `seed_insert_contractor` and `seed_insert_review` from public/anon/authenticated (service_role only) |
+| `20260517120000_user_roles.sql` | Create `app_role` enum, `user_roles` table with RLS, and `has_role(_user_id, _role)` security-definer function |
+| `20260517140000_test_data_cars.sql` | Test data seed — 3 garages + 3 vehicle owners with reviews (see Test accounts below) |
+
+## Test accounts
+
+Seeded by migration `20260517140000_test_data_cars.sql`. Password for all: **`TestData123!`**
+
+| Email | Role | Business / Name | Expertise | Reviews |
+|-------|------|-----------------|-----------|---------|
+| `test-fastfix@kisxcars.test` | Garage | TEST Fast Fix Autos | Bodywork, Interior | 4 reviews, avg ≈ 4.5★ |
+| `test-drivewell@kisxcars.test` | Garage | TEST DriveWell Motors | Mechanical, General | 3 reviews, avg ≈ 2.9★ |
+| `test-quickspark@kisxcars.test` | Garage | TEST Quickspark Electrics | Electrical, Mechanical | 4 reviews, avg ≈ 4.8★ |
+| `test-alice@kisxcars.test` | Vehicle owner | TEST Alice | — | — |
+| `test-bob@kisxcars.test` | Vehicle owner | TEST Bob | — | — |
+| `test-carol@kisxcars.test` | Vehicle owner | TEST Carol | — | — |
+
+All names and emails are prefixed with "TEST" — unambiguously not real users. Apply the migration via the Supabase SQL editor or `supabase db push`; it is idempotent (`ON CONFLICT DO NOTHING` throughout).
+
+**Note:** jobs and bids live in the Cloud Run API, not Supabase, so the owner dashboards start empty — use the `scripts/db-seed.ts` script to add job/bid/milestone activity via the API.
 
 ## Review system
 
@@ -296,7 +331,11 @@ Admins read it directly from `reviews` via service role.
 - `analyse-breakdown` uses a Lovable/Gemini API key (`LOVABLE_API_KEY`) — must be set in edge function secrets
 - The Supabase `videos` table still exists but `MyProjects.tsx` no longer queries it — the customer dashboard now fetches jobs from `GET /jobs` (Cloud Run). The table is effectively superseded by the jobs API for project listing.
 - `MyProjects.tsx` uses `api.jobs.get(id)` to re-fetch a single job after status transitions — the job must exist in the Cloud Run jobs table, not just in `videos`
-- **Capacitor config** (`capacitor.config.ts`) has `appId: 'com.kisxcars.app'` and `appName: 'KisXCars'` — already updated, verify this matches Play Store / App Store listings before release
+- **Capacitor config** (`capacitor.config.ts`) has `appId: 'com.kisxcars.app'` and `appName: 'KisXCars'` — verify this matches Play Store / App Store listings before release submission
 - **Capacitor dev server** — the `server.url` block points to a local WiFi address for live-reload development; remove it entirely before building a release APK or IPA
-- **iOS Capacitor** not yet set up — requires a Mac with Xcode; run `npm install @capacitor/ios && npx cap add ios` to initialise
+- **Both iOS and Android have working debug builds** — `ios/App/App.xcodeproj` is fully initialised with KisXCars icons and splash screens. Opening in Xcode requires a Mac.
 - **Push notifications on iOS** only work when the app is installed as a PWA from Safari, not from within the browser tab
+- `profiles.postcode` has a check constraint enforcing 5-digit US ZIP format — do not insert UK-style postcodes
+- `reviews.reviewer_id` has **no FK constraint** to `auth.users` (just `DEFAULT auth.uid()`) — static UUIDs can be used in seed data
+- `user_metadata` uses `id` (not `user_id`) as its PK/FK to `auth.users` — consistent with `profiles`
+- Admin-gated features (debug modal, etc.) use `useIsAdmin()` which calls the `has_role` RPC — never gate on client-side state alone
