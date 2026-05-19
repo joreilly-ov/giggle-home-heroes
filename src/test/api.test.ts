@@ -29,7 +29,7 @@ const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
 
 // Import AFTER mocks are declared so module picks up the stubs
-const { api } = await import("@/lib/api");
+const { api, RateLimitError } = await import("@/lib/api");
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -41,11 +41,16 @@ function mockSession(token: string | null) {
 
 function mockResponse(
   body: unknown,
-  { ok = true, status = 200 }: { ok?: boolean; status?: number } = {},
+  {
+    ok = true,
+    status = 200,
+    headers = {},
+  }: { ok?: boolean; status?: number; headers?: Record<string, string> } = {},
 ) {
   mockFetch.mockResolvedValue({
     ok,
     status,
+    headers: { get: (name: string) => headers[name] ?? null },
     json: () => Promise.resolve(body),
     text: () =>
       Promise.resolve(typeof body === "string" ? body : JSON.stringify(body)),
@@ -131,6 +136,7 @@ describe("api — error handling", () => {
     mockFetch.mockResolvedValue({
       ok: false,
       status: 422,
+      headers: { get: () => null },
       text: () => Promise.resolve("bid amount must be positive"),
       json: () => Promise.resolve({}),
     });
@@ -145,6 +151,7 @@ describe("api — error handling", () => {
     mockFetch.mockResolvedValue({
       ok: false,
       status: 503,
+      headers: { get: () => null },
       text: () => Promise.resolve(""),
       json: () => Promise.resolve({}),
     });
@@ -160,6 +167,41 @@ describe("api — error handling", () => {
     const result = await api.jobs.get("job-42");
 
     expect(result).toEqual(job);
+  });
+});
+
+describe("api — 429 rate limit handling", () => {
+  it("throws a RateLimitError when the server responds with 429", async () => {
+    mockSession("tok");
+    mockResponse({ error: "slow down" }, {
+      ok: false,
+      status: 429,
+      headers: { "Retry-After": "12" },
+    });
+
+    const err = await api.jobs.list().catch((e) => e);
+    expect(err).toBeInstanceOf(RateLimitError);
+    expect((err as InstanceType<typeof RateLimitError>).retryAfter).toBe(12);
+    expect((err as Error).message).toContain("slow down");
+  });
+
+  it("falls back to a default retryAfter when the header is missing", async () => {
+    mockSession("tok");
+    mockResponse("", { ok: false, status: 429 });
+
+    const err = await api.jobs.list().catch((e) => e);
+    expect(err).toBeInstanceOf(RateLimitError);
+    expect((err as InstanceType<typeof RateLimitError>).retryAfter).toBe(30);
+    expect((err as Error).message).toMatch(/try again in 30 seconds/);
+  });
+
+  it("rounds non-integer Retry-After values up to the next second", async () => {
+    mockSession("tok");
+    mockResponse({}, { ok: false, status: 429, headers: { "Retry-After": "2.3" } });
+
+    const err = await api.jobs.list().catch((e) => e);
+    expect(err).toBeInstanceOf(RateLimitError);
+    expect((err as InstanceType<typeof RateLimitError>).retryAfter).toBe(3);
   });
 });
 

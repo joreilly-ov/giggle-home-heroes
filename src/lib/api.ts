@@ -2,6 +2,28 @@ import { supabase } from "@/integrations/supabase/client";
 
 const BASE = "https://stable-gig-cars-374485351183.europe-west1.run.app";
 
+export class RateLimitError extends Error {
+  readonly status = 429;
+  constructor(public readonly retryAfter: number, message?: string) {
+    super(
+      message ??
+        `Too many requests — please try again in ${retryAfter} second${retryAfter === 1 ? "" : "s"}.`,
+    );
+    this.name = "RateLimitError";
+  }
+}
+
+function parseRetryAfter(header: string | null): number {
+  if (!header) return 30;
+  const seconds = Number(header);
+  if (Number.isFinite(seconds) && seconds > 0) return Math.ceil(seconds);
+  const dateMs = Date.parse(header);
+  if (!Number.isNaN(dateMs)) {
+    return Math.max(1, Math.ceil((dateMs - Date.now()) / 1000));
+  }
+  return 30;
+}
+
 function apiErrorMessage(text: string, status: number, method: string, path: string) {
   let detail = text.trim();
   try {
@@ -17,6 +39,17 @@ function apiErrorMessage(text: string, status: number, method: string, path: str
   }
 
   return detail || `Request failed (${status})`;
+}
+
+async function throwForError(res: Response, method: string, path: string): Promise<never> {
+  const text = await res.text();
+  if (res.status === 429) {
+    const retryAfter = parseRetryAfter(res.headers.get("Retry-After"));
+    const upstream = apiErrorMessage(text, res.status, method, path);
+    const looksGeneric = !upstream || upstream === `Request failed (${res.status})`;
+    throw new RateLimitError(retryAfter, looksGeneric ? undefined : upstream);
+  }
+  throw new Error(apiErrorMessage(text, res.status, method, path));
 }
 
 async function authHeaders(): Promise<HeadersInit> {
@@ -35,10 +68,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: { ...headers, ...(init?.headers ?? {}) },
   });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(apiErrorMessage(text, res.status, method, path));
-  }
+  if (!res.ok) await throwForError(res, method, path);
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
@@ -49,10 +79,7 @@ async function publicRequest<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
   });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(apiErrorMessage(text, res.status, method, path));
-  }
+  if (!res.ok) await throwForError(res, method, path);
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
