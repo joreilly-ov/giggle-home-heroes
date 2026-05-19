@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -36,6 +37,9 @@ serve(async (req) => {
   });
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return unauthorized();
+
+  const limit = checkRateLimit(`analyse-breakdown:${user.id}`, 10, 60_000);
+  if (!limit.allowed) return rateLimitResponse(limit.retryAfter, corsHeaders);
 
   if (!LOVABLE_API_KEY) {
     return jsonResponse({ error: 'AI service not configured' }, 503);
