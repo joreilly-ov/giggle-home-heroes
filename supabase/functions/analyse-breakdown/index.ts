@@ -19,6 +19,15 @@ function jsonResponse(body: unknown, status: number) {
   });
 }
 
+function logEvent(event: Record<string, unknown>) {
+  // Structured JSON line for log aggregation / audit.
+  try {
+    console.log(JSON.stringify({ fn: 'analyse-breakdown', ts: new Date().toISOString(), ...event }));
+  } catch {
+    console.log('analyse-breakdown log serialise failed');
+  }
+}
+
 function unauthorized() {
   return jsonResponse({ error: 'Unauthorized' }, 401);
 }
@@ -28,18 +37,44 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  const requestId = req.headers.get('x-request-id') ?? crypto.randomUUID();
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    ?? req.headers.get('cf-connecting-ip')
+    ?? null;
+
   // Auth check
   const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) return unauthorized();
+  if (!authHeader?.startsWith('Bearer ')) {
+    logEvent({ event: 'auth_failure', reason: 'missing_bearer', request_id: requestId, ip });
+    return unauthorized();
+  }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: authHeader } },
   });
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return unauthorized();
+  if (authError || !user) {
+    logEvent({
+      event: 'auth_failure',
+      reason: authError ? 'invalid_token' : 'no_user',
+      auth_error: authError?.message ?? null,
+      request_id: requestId,
+      ip,
+    });
+    return unauthorized();
+  }
 
   const limit = checkRateLimit(`analyse-breakdown:${user.id}`, 10, 60_000);
-  if (!limit.allowed) return rateLimitResponse(limit.retryAfter, corsHeaders);
+  if (!limit.allowed) {
+    logEvent({
+      event: 'rate_limit_hit',
+      user_id: user.id,
+      retry_after_seconds: limit.retryAfter,
+      request_id: requestId,
+      ip,
+    });
+    return rateLimitResponse(limit.retryAfter, corsHeaders);
+  }
 
   if (!LOVABLE_API_KEY) {
     return jsonResponse({ error: 'AI service not configured' }, 503);
