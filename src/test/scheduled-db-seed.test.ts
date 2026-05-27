@@ -3,66 +3,53 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-  CLOUD_RUN_BASE,
-  PLACEHOLDER_IMAGE,
-  signIn,
-  cloudRunRequest,
-  runSeed,
-} from "../../scripts/db-seed";
+import { signIn, getContractorId, runSeed } from "../../scripts/db-seed";
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
 const mockSignInWithPassword = vi.fn();
+const mockFrom = vi.fn();
 
 vi.mock("@supabase/supabase-js", () => ({
   createClient: () => ({
     auth: { signInWithPassword: mockSignInWithPassword },
+    from: mockFrom,
   }),
 }));
 
-const mockFetch = vi.fn();
-vi.stubGlobal("fetch", mockFetch);
+beforeEach(() => vi.clearAllMocks());
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function jsonResponse(body: unknown, status = 200) {
-  return Promise.resolve({
-    ok: status >= 200 && status < 300,
-    status,
-    json: () => Promise.resolve(body),
-    text: () => Promise.resolve(JSON.stringify(body)),
+function mockSignIn(userId: string) {
+  mockSignInWithPassword.mockResolvedValue({
+    data: { session: { user: { id: userId }, access_token: "tok" } },
+    error: null,
   });
 }
 
-function errorResponse(body: string, status: number) {
-  return Promise.resolve({
-    ok: false,
-    status,
-    json: () => Promise.resolve({}),
-    text: () => Promise.resolve(body),
+function mockSignInFail(message: string) {
+  mockSignInWithPassword.mockResolvedValue({
+    data: { session: null },
+    error: { message },
   });
 }
-
-beforeEach(() => {
-  vi.clearAllMocks();
-});
 
 // ─── signIn ───────────────────────────────────────────────────────────────────
 
 describe("signIn", () => {
-  it("returns the access token on success", async () => {
+  it("returns the user ID on success", async () => {
     const fakeSupabase = {
       auth: {
         signInWithPassword: vi.fn().mockResolvedValue({
-          data: { session: { access_token: "tok-abc" } },
+          data: { session: { user: { id: "user-123" }, access_token: "tok" } },
           error: null,
         }),
       },
     };
     // @ts-expect-error — passing minimal stub
-    const token = await signIn(fakeSupabase, "owner@test.com", "pass");
-    expect(token).toBe("tok-abc");
+    const id = await signIn(fakeSupabase, "owner@test.com", "pass");
+    expect(id).toBe("user-123");
   });
 
   it("throws when Supabase returns an error", async () => {
@@ -94,101 +81,132 @@ describe("signIn", () => {
   });
 });
 
-// ─── cloudRunRequest ──────────────────────────────────────────────────────────
+// ─── getContractorId ──────────────────────────────────────────────────────────
 
-describe("cloudRunRequest", () => {
-  it("calls the correct full URL", async () => {
-    mockFetch.mockReturnValue(jsonResponse({ likely_issue: "tyre wear" }));
-    await cloudRunRequest("/analyse/photos", "token-x");
-    const [url] = mockFetch.mock.calls[0] as [string];
-    expect(url).toBe(`${CLOUD_RUN_BASE}/analyse/photos`);
+describe("getContractorId", () => {
+  it("returns the contractor id on success", async () => {
+    const fakeSupabase = {
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            single: () => Promise.resolve({ data: { id: "contractor-abc" }, error: null }),
+          }),
+        }),
+      }),
+    };
+    // @ts-expect-error — passing minimal stub
+    const id = await getContractorId(fakeSupabase, "user-123");
+    expect(id).toBe("contractor-abc");
   });
 
-  it("sends Authorization header with the token", async () => {
-    mockFetch.mockReturnValue(jsonResponse({}));
-    await cloudRunRequest("/analyse/photos", "my-jwt");
-    const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
-    expect((init.headers as Record<string, string>)["Authorization"]).toBe("Bearer my-jwt");
-  });
-
-  it("throws with response body text on failure", async () => {
-    mockFetch.mockReturnValue(errorResponse("unauthorised", 401));
-    await expect(cloudRunRequest("/analyse/photos", "tok")).rejects.toThrow(
-      "/analyse/photos → 401: unauthorised"
-    );
-  });
-
-  it("returns undefined for 204 responses", async () => {
-    mockFetch.mockReturnValue(
-      Promise.resolve({ ok: true, status: 204, json: vi.fn(), text: vi.fn() })
-    );
-    const result = await cloudRunRequest("/some/path", "tok", { method: "DELETE" });
-    expect(result).toBeUndefined();
+  it("throws when no contractor row exists", async () => {
+    const fakeSupabase = {
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            single: () =>
+              Promise.resolve({ data: null, error: { message: "No rows found" } }),
+          }),
+        }),
+      }),
+    };
+    // @ts-expect-error — passing minimal stub
+    await expect(getContractorId(fakeSupabase, "user-xyz")).rejects.toThrow("No rows found");
   });
 });
 
 // ─── runSeed ──────────────────────────────────────────────────────────────────
 
 describe("runSeed", () => {
-  const config = { ownerEmail: "owner@test.com", ownerPassword: "ownerpass" };
-
-  const fakeAnalysis = {
-    likely_issue: "Tyre tread depth below legal minimum",
-    urgency_score: 8,
-    required_tools: ["tyre iron", "jack"],
-    estimated_parts: ["2x front tyres"],
+  const config = {
+    ownerEmail: "owner@test.com",
+    ownerPassword: "ownerpass",
+    garageEmail: "garage@test.com",
+    garagePassword: "garagepass",
   };
 
   function setupHappyPath() {
-    mockSignInWithPassword.mockResolvedValueOnce({
-      data: { session: { access_token: "owner-tok" } },
-      error: null,
+    // garage sign-in, then owner sign-in
+    mockSignInWithPassword
+      .mockResolvedValueOnce({
+        data: { session: { user: { id: "garage-user-1" }, access_token: "g-tok" } },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: { session: { user: { id: "owner-user-1" }, access_token: "o-tok" } },
+        error: null,
+      });
+
+    mockFrom.mockReturnValue({
+      select: () => ({
+        eq: () => ({
+          single: () => Promise.resolve({ data: { id: "contractor-99" }, error: null }),
+        }),
+      }),
+      insert: () => Promise.resolve({ error: null }),
     });
-    mockFetch.mockReturnValueOnce(jsonResponse(fakeAnalysis));
   }
 
-  it("returns a SeedResult with vehicle, category and analysis data", async () => {
+  it("returns a SeedResult with the contractor id and ratings", async () => {
     setupHappyPath();
     const result = await runSeed(config);
-    expect(result.vehicle).toBeTruthy();
-    expect(result.category).toBeTruthy();
-    expect(result.likelyIssue).toBe(fakeAnalysis.likely_issue);
-    expect(result.urgencyScore).toBe(fakeAnalysis.urgency_score);
+    expect(result.contractorId).toBe("contractor-99");
+    expect(result.ratingQuality).toBeGreaterThanOrEqual(3);
+    expect(result.ratingCommunication).toBeGreaterThanOrEqual(3);
+    expect(result.ratingCleanliness).toBeGreaterThanOrEqual(3);
   });
 
-  it("calls only one Cloud Run endpoint: POST /analyse/photos", async () => {
+  it("signs in as garage first, then owner", async () => {
     setupHappyPath();
     await runSeed(config);
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-    const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe(`${CLOUD_RUN_BASE}/analyse/photos`);
-    expect(init.method).toBe("POST");
-  });
-
-  it("sends owner token in the Authorization header", async () => {
-    setupHappyPath();
-    await runSeed(config);
-    const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
-    expect((init.headers as Record<string, string>)["Authorization"]).toBe("Bearer owner-tok");
-  });
-
-  it("includes images, description and trade_category in the request body", async () => {
-    setupHappyPath();
-    await runSeed(config);
-    const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
-    const body = JSON.parse(init.body as string);
-    expect(Array.isArray(body.images)).toBe(true);
-    expect(body.images[0]).toBe(PLACEHOLDER_IMAGE);
-    expect(typeof body.description).toBe("string");
-    expect(body.description.length).toBeGreaterThan(10);
-    expect(typeof body.trade_category).toBe("string");
-  });
-
-  it("throws if sign-in fails", async () => {
-    mockSignInWithPassword.mockResolvedValue({
-      data: { session: null },
-      error: { message: "Invalid credentials" },
+    expect(mockSignInWithPassword).toHaveBeenNthCalledWith(1, {
+      email: config.garageEmail,
+      password: config.garagePassword,
     });
+    expect(mockSignInWithPassword).toHaveBeenNthCalledWith(2, {
+      email: config.ownerEmail,
+      password: config.ownerPassword,
+    });
+  });
+
+  it("throws if garage sign-in fails", async () => {
+    mockSignInFail("Invalid credentials");
     await expect(runSeed(config)).rejects.toThrow("Invalid credentials");
+  });
+
+  it("throws if contractor row is missing", async () => {
+    mockSignInWithPassword.mockResolvedValue({
+      data: { session: { user: { id: "u1" }, access_token: "tok" } },
+      error: null,
+    });
+    mockFrom.mockReturnValue({
+      select: () => ({
+        eq: () => ({
+          single: () => Promise.resolve({ data: null, error: { message: "No rows found" } }),
+        }),
+      }),
+    });
+    await expect(runSeed(config)).rejects.toThrow("No rows found");
+  });
+
+  it("throws if the review insert fails", async () => {
+    mockSignInWithPassword
+      .mockResolvedValueOnce({
+        data: { session: { user: { id: "g1" }, access_token: "tok" } },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: { session: { user: { id: "o1" }, access_token: "tok" } },
+        error: null,
+      });
+    mockFrom.mockReturnValue({
+      select: () => ({
+        eq: () => ({
+          single: () => Promise.resolve({ data: { id: "c1" }, error: null }),
+        }),
+      }),
+      insert: () => Promise.resolve({ error: { message: "RLS policy violation" } }),
+    });
+    await expect(runSeed(config)).rejects.toThrow("RLS policy violation");
   });
 });

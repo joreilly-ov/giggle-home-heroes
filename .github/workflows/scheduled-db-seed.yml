@@ -6,9 +6,10 @@ name: Scheduled DB Seed
 # Required repository secrets:
 #   SEED_OWNER_EMAIL    — email for a test vehicle owner Supabase account
 #   SEED_OWNER_PASSWORD — password for the above
+#   SEED_GARAGE_EMAIL   — email for a test garage Supabase account
+#   SEED_GARAGE_PASSWORD — password for the above
 #
-# The script signs in as a vehicle owner and submits a photo analysis request
-# to keep the Cloud Run API and Supabase auth warm.
+# The script inserts one review directly into Supabase on each run.
 
 on:
   schedule:
@@ -40,6 +41,8 @@ jobs:
         env:
           SEED_OWNER_EMAIL: ${{ secrets.SEED_OWNER_EMAIL }}
           SEED_OWNER_PASSWORD: ${{ secrets.SEED_OWNER_PASSWORD }}
+          SEED_GARAGE_EMAIL: ${{ secrets.SEED_GARAGE_EMAIL }}
+          SEED_GARAGE_PASSWORD: ${{ secrets.SEED_GARAGE_PASSWORD }}
 
       - name: Run unit tests (seed helpers)
         run: npx vitest run src/test/scheduled-db-seed.test.ts
