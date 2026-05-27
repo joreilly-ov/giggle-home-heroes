@@ -1,14 +1,12 @@
 /**
  * Scheduled database seed script.
  *
- * Runs twice daily via GitHub Actions to keep the Cloud Run jobs API and
- * Supabase database active, and to build up realistic test content over time.
+ * Runs twice daily via GitHub Actions to keep the Cloud Run API and
+ * Supabase database active, and to accumulate realistic analysis records.
  *
  * Required environment variables:
- *   SEED_OWNER_EMAIL    — test vehicle owner account
+ *   SEED_OWNER_EMAIL    — test vehicle owner Supabase account
  *   SEED_OWNER_PASSWORD
- *   SEED_GARAGE_EMAIL   — test garage account
- *   SEED_GARAGE_PASSWORD
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -74,233 +72,121 @@ const ISSUES = [
   {
     category: "Bodywork",
     description: "Front bumper has a nasty scuff from a parking incident in a supermarket car park, paint is scratched through to the primer and there is light cracking in the plastic.",
-    severity: "minor",
-    cost_low: 150,
-    cost_high: 350,
   },
   {
     category: "Mechanical",
     description: "Engine warning light came on three days ago and the car now has a rough idle at low revs, particularly noticeable when stopped at traffic lights in the morning.",
-    severity: "moderate",
-    cost_low: 200,
-    cost_high: 600,
   },
   {
     category: "Tyres",
     description: "Both front tyres are worn well below the legal 1.6mm tread limit and need replacing urgently before the next MOT, which is due in six weeks.",
-    severity: "urgent",
-    cost_low: 180,
-    cost_high: 280,
   },
   {
     category: "Windscreen",
     description: "A stone chip on the motorway two weeks ago has spread into a crack about 15cm long directly in the driver eyeline and is now failing the MOT visibility test.",
-    severity: "urgent",
-    cost_low: 100,
-    cost_high: 250,
   },
   {
     category: "Electrical",
     description: "Multiple dashboard warning lights are flickering on and off intermittently, the battery seems to drain faster than usual and the alternator may be on its way out.",
-    severity: "moderate",
-    cost_low: 250,
-    cost_high: 500,
   },
   {
     category: "Bodywork",
     description: "Driver door has a dent the size of a fist with a deep scratch running through it, most likely from a neighbouring car door swinging open in a car park.",
-    severity: "minor",
-    cost_low: 200,
-    cost_high: 450,
   },
   {
     category: "Interior",
     description: "Driver seat bolster is badly torn with foam showing through, and the centre console lid hinge has snapped so it no longer stays closed when driving over bumps.",
-    severity: "minor",
-    cost_low: 120,
-    cost_high: 300,
   },
 ];
+
+// 1×1 transparent PNG — stable placeholder image requiring no external fetch
+export const PLACEHOLDER_IMAGE =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
 
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-// ─── Main seed function ───────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface SeedConfig {
   ownerEmail: string;
   ownerPassword: string;
-  garageEmail: string;
-  garagePassword: string;
 }
 
 export interface SeedResult {
-  jobId: string;
   vehicle: string;
-  issue: string;
-  bidAmountPence: number;
-  milestonesCreated: number;
+  category: string;
+  likelyIssue: string;
+  urgencyScore: number;
 }
+
+export interface AnalysisResponse {
+  likely_issue: string;
+  urgency_score: number;
+  required_tools: string[];
+  estimated_parts: string[];
+}
+
+// ─── Main seed function ───────────────────────────────────────────────────────
 
 export async function runSeed(config: SeedConfig): Promise<SeedResult> {
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { persistSession: false, detectSessionInUrl: false },
   });
 
-  // Sign in both users upfront — JWTs are valid for 1 hour, enough for the run
   console.log("Signing in as vehicle owner...");
   const ownerToken = await signIn(supabase, config.ownerEmail, config.ownerPassword);
 
-  console.log("Signing in as garage...");
-  const garageToken = await signIn(supabase, config.garageEmail, config.garagePassword);
-
-  // ── Step 1: Owner creates and publishes a job ──────────────────────────────
   const vehicle = pick(VEHICLES);
   const issue = pick(ISSUES);
   const vehicleLabel = `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
 
-  console.log(`Creating job: ${vehicleLabel} — ${issue.category} — ${issue.description}`);
+  console.log(`Analysing: ${vehicleLabel} — ${issue.category}`);
+  console.log(`  ${issue.description}`);
 
-  const job = await cloudRunRequest<{ id: string; status: string }>(
-    "/jobs",
+  const analysis = await cloudRunRequest<AnalysisResponse>(
+    "/analyse/photos",
     ownerToken,
     {
       method: "POST",
       body: JSON.stringify({
-        title: `${vehicleLabel} — ${issue.category}`,
-        description: issue.description,
-        activity: issue.category,
-        postcode: "SW1A 1AA",
-        analysis_result: {
-          vehicle: vehicleLabel,
-          category: issue.category,
-          description: issue.description,
-          severity: issue.severity,
-          estimated_cost_gbp: { low: issue.cost_low, high: issue.cost_high },
-          seed_run: new Date().toISOString(),
-        },
+        images: [PLACEHOLDER_IMAGE],
+        description: `${vehicleLabel}. ${issue.description}`,
+        trade_category: issue.category,
       }),
     }
   );
-  console.log(`  Job created: ${job.id} (${job.status})`);
 
-  await cloudRunRequest(`/jobs/${job.id}`, ownerToken, {
-    method: "PATCH",
-    body: JSON.stringify({ status: "open" }),
-  });
-  console.log("  Job published (open)");
-
-  // ── Step 2: Garage submits a bid ───────────────────────────────────────────
-  const bidAmountPence =
-    (Math.floor(Math.random() * (issue.cost_high - issue.cost_low)) + issue.cost_low) * 100;
-
-  console.log(`Submitting bid: £${bidAmountPence / 100}`);
-
-  const bid = await cloudRunRequest<{ id: string }>(
-    `/jobs/${job.id}/bids`,
-    garageToken,
-    {
-      method: "POST",
-      body: JSON.stringify({
-        amount_pence: bidAmountPence,
-        note: `We can handle the ${issue.category.toLowerCase()} work on your ${vehicleLabel}. OEM parts, 12-month warranty on all labour.`,
-      }),
-    }
-  );
-  console.log(`  Bid submitted: ${bid.id}`);
-
-  // ── Step 3: Owner accepts the bid ──────────────────────────────────────────
-  console.log("Owner accepting bid...");
-  await cloudRunRequest(`/jobs/${job.id}/bids/${bid.id}`, ownerToken, {
-    method: "PATCH",
-    body: JSON.stringify({ action: "accept" }),
-  });
-  console.log("  Bid accepted (job awarded)");
-
-  // ── Step 4: Garage creates milestones ──────────────────────────────────────
-  console.log("Garage creating milestones...");
-  const milestones = await cloudRunRequest<Array<{ id: string; title: string }>>(
-    `/jobs/${job.id}/milestones`,
-    garageToken,
-    {
-      method: "POST",
-      body: JSON.stringify({
-        milestones: [
-          { title: "Assessment & parts order", order_index: 0 },
-          { title: "Repair work", order_index: 1 },
-          { title: "Quality check & handover", order_index: 2 },
-        ],
-      }),
-    }
-  );
-  console.log(`  Created ${milestones.length} milestones`);
-
-  // ── Step 5: Garage submits a milestone photo ───────────────────────────────
-  console.log("Garage submitting progress photo...");
-  // 1×1 transparent PNG as a stable placeholder that requires no external fetch
-  const placeholderImage =
-    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
-  await cloudRunRequest(
-    `/jobs/${job.id}/milestones/${milestones[0].id}/photos`,
-    garageToken,
-    {
-      method: "POST",
-      body: JSON.stringify({
-        image_source: placeholderImage,
-        note: "Initial assessment complete. Parts ordered and confirmed in stock.",
-      }),
-    }
-  );
-  console.log(`  Photo submitted for: ${milestones[0].title}`);
-
-  // ── Step 6: Owner approves the first milestone ─────────────────────────────
-  console.log("Owner approving milestone...");
-  await cloudRunRequest(
-    `/jobs/${job.id}/milestones/${milestones[0].id}`,
-    ownerToken,
-    {
-      method: "PATCH",
-      body: JSON.stringify({ action: "approve" }),
-    }
-  );
-  console.log("  Milestone approved");
+  console.log(`  Likely issue : ${analysis.likely_issue}`);
+  console.log(`  Urgency      : ${analysis.urgency_score}/10`);
+  console.log(`  Tools needed : ${analysis.required_tools?.join(", ") || "none listed"}`);
 
   return {
-    jobId: job.id,
     vehicle: vehicleLabel,
-    issue: `${issue.category}: ${issue.description}`,
-    bidAmountPence,
-    milestonesCreated: milestones.length,
+    category: issue.category,
+    likelyIssue: analysis.likely_issue,
+    urgencyScore: analysis.urgency_score,
   };
 }
 
 // ─── Entry point ──────────────────────────────────────────────────────────────
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const { SEED_OWNER_EMAIL, SEED_OWNER_PASSWORD, SEED_GARAGE_EMAIL, SEED_GARAGE_PASSWORD } =
-    process.env;
+  const { SEED_OWNER_EMAIL, SEED_OWNER_PASSWORD } = process.env;
 
-  if (!SEED_OWNER_EMAIL || !SEED_OWNER_PASSWORD || !SEED_GARAGE_EMAIL || !SEED_GARAGE_PASSWORD) {
-    console.error(
-      "Missing required env vars: SEED_OWNER_EMAIL, SEED_OWNER_PASSWORD, SEED_GARAGE_EMAIL, SEED_GARAGE_PASSWORD"
-    );
+  if (!SEED_OWNER_EMAIL || !SEED_OWNER_PASSWORD) {
+    console.error("Missing required env vars: SEED_OWNER_EMAIL, SEED_OWNER_PASSWORD");
     process.exit(1);
   }
 
-  runSeed({
-    ownerEmail: SEED_OWNER_EMAIL,
-    ownerPassword: SEED_OWNER_PASSWORD,
-    garageEmail: SEED_GARAGE_EMAIL,
-    garagePassword: SEED_GARAGE_PASSWORD,
-  })
+  runSeed({ ownerEmail: SEED_OWNER_EMAIL, ownerPassword: SEED_OWNER_PASSWORD })
     .then((result) => {
       console.log(`\nSeed complete:`);
-      console.log(`  Job ID       : ${result.jobId}`);
       console.log(`  Vehicle      : ${result.vehicle}`);
-      console.log(`  Issue        : ${result.issue}`);
-      console.log(`  Bid          : £${result.bidAmountPence / 100}`);
-      console.log(`  Milestones   : ${result.milestonesCreated}`);
+      console.log(`  Category     : ${result.category}`);
+      console.log(`  Likely issue : ${result.likelyIssue}`);
+      console.log(`  Urgency      : ${result.urgencyScore}/10`);
     })
     .catch((err: Error) => {
       console.error(`Seed failed: ${err.message}`);
