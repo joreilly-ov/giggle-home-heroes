@@ -153,7 +153,7 @@ export async function runSeed(config: SeedConfig): Promise<SeedResult> {
       body: JSON.stringify({
         images: [PLACEHOLDER_IMAGE],
         description: `${vehicleLabel}. ${issue.description}`,
-        trade_category: issue.category,
+        trade_category: issue.category.toLowerCase(),
       }),
     }
   );
