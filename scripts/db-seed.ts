@@ -18,7 +18,7 @@ const SUPABASE_URL = "https://szpgcvfemllcsajryyuv.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6cGdjdmZlbWxsY3NhanJ5eXV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwNzA1NjUsImV4cCI6MjA4ODY0NjU2NX0.RA6BYTY10lc4Wok49pRo4jZPr4_UsfzytwYWv38DEp4";
 export const CLOUD_RUN_BASE =
-  "https://stable-gig-374485351183.europe-west1.run.app";
+  "https://stable-gig-cars-374485351183.europe-west1.run.app";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
