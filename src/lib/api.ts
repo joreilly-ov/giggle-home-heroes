@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 
-const BASE = "https://stable-gig-cars-374485351183.europe-west1.run.app";
+const BASE = "https://stable-gig-374485351183.europe-west1.run.app";
 
 function apiErrorMessage(text: string, status: number, method: string, path: string) {
   let detail = text.trim();
