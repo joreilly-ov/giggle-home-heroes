@@ -168,6 +168,10 @@ export async function runSeed(config: SeedConfig): Promise<SeedResult> {
     {
       method: "POST",
       body: JSON.stringify({
+        title: `${vehicleLabel} — ${issue.category}`,
+        description: issue.description,
+        activity: issue.category,
+        postcode: "SW1A 1AA",
         analysis_result: {
           vehicle: vehicleLabel,
           category: issue.category,

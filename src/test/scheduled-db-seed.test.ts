@@ -279,6 +279,19 @@ describe("runSeed", () => {
     expect(body.analysis_result.seed_run).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
+  it("includes required top-level fields in the create job request", async () => {
+    setupHappyPath();
+
+    await runSeed(config);
+
+    const [, createInit] = mockFetch.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(createInit.body as string);
+    expect(body.title).toBeTruthy();
+    expect(body.description).toBeTruthy();
+    expect(body.activity).toBeTruthy();
+    expect(body.postcode).toBeTruthy();
+  });
+
   it("throws if sign-in fails for the owner", async () => {
     mockSignInWithPassword.mockResolvedValue({
       data: { session: null },
