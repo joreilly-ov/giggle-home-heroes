@@ -40,13 +40,13 @@ export async function getContractorId(
 ): Promise<string> {
   const { data, error } = await supabase
     .from("contractors")
-    .select("id")
+    .select("user_id")
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
   if (error || !data) {
     throw new Error(`No contractor row found for user ${userId}: ${error?.message ?? "no data"}`);
   }
-  return data.id;
+  return data.user_id;
 }
 
 // ─── Seed data pools ──────────────────────────────────────────────────────────
