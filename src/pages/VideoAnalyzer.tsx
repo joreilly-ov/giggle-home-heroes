@@ -9,6 +9,7 @@ import { ArrowLeft, Upload, Video, Loader2, AlertTriangle, CheckCircle, X, Wrenc
 import Navbar from "@/components/Navbar";
 import { useVertical } from "@/contexts/VerticalContext";
 import TaskBreakdown from "@/components/photo-analyzer/TaskBreakdown";
+import { supabase } from "@/integrations/supabase/client";
 
 
 type VideoAnalysisResult = {
@@ -137,9 +138,19 @@ const VideoAnalyzer = () => {
 
       setProgress(30);
 
-      const response = await fetch("https://stable-gig-374485351183.europe-west1.run.app/analyse", {
+      // Route through the authenticated `analyse-video` edge function so the
+      // upstream Cloud Run AI service is never called without a valid JWT.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("You must be signed in to analyse a video.");
+      }
+      const edgeUrl = `https://szpgcvfemllcsajryyuv.supabase.co/functions/v1/analyse-video`;
+      const response = await fetch(edgeUrl, {
         method: "POST",
         body: formData,
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
       });
 
       setProgress(90);
