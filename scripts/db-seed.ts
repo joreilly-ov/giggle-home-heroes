@@ -40,7 +40,7 @@ export async function getOrCreateContractor(
 ): Promise<string> {
   const { data, error } = await supabase
     .from("contractors")
-    .select("user_id")
+    .select("id")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -48,21 +48,25 @@ export async function getOrCreateContractor(
     throw new Error(`Contractor lookup failed for ${userId}: ${error.message}`);
   }
 
-  if (data) return data.user_id;
+  if (data) return data.id;
 
   // No row yet — create a seed contractor profile
   console.log("  No contractor row found — creating one...");
-  const { error: insertError } = await supabase.from("contractors").insert({
-    user_id: userId,
-    business_name: "Seed Test Garage",
-    postcode: "EC1A 1BB",
-    phone: "02071234567",
-    expertise: ["bodywork", "mechanical", "electrical"],
-  });
-  if (insertError) {
-    throw new Error(`Contractor insert failed: ${insertError.message}`);
+  const { data: created, error: insertError } = await supabase
+    .from("contractors")
+    .insert({
+      user_id: userId,
+      business_name: "Seed Test Garage",
+      postcode: "EC1A 1BB",
+      phone: "02071234567",
+      expertise: ["bodywork", "mechanical", "electrical"],
+    })
+    .select("id")
+    .single();
+  if (insertError || !created) {
+    throw new Error(`Contractor insert failed: ${insertError?.message ?? "no data"}`);
   }
-  return userId;
+  return created.id;
 }
 
 // ─── Seed data pools ──────────────────────────────────────────────────────────

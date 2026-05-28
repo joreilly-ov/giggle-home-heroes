@@ -84,25 +84,23 @@ describe("signIn", () => {
 // ─── getContractorId ──────────────────────────────────────────────────────────
 
 describe("getOrCreateContractor", () => {
-  it("returns the user_id when a contractor row already exists", async () => {
+  it("returns the id when a contractor row already exists", async () => {
     const fakeSupabase = {
       from: () => ({
         select: () => ({
           eq: () => ({
             maybeSingle: () =>
-              Promise.resolve({ data: { user_id: "user-123" }, error: null }),
+              Promise.resolve({ data: { id: "contractor-abc" }, error: null }),
           }),
         }),
-        insert: () => Promise.resolve({ error: null }),
       }),
     };
     // @ts-expect-error — passing minimal stub
     const id = await getOrCreateContractor(fakeSupabase, "user-123");
-    expect(id).toBe("user-123");
+    expect(id).toBe("contractor-abc");
   });
 
-  it("creates a contractor row and returns user_id when none exists", async () => {
-    const insertFn = vi.fn().mockResolvedValue({ error: null });
+  it("creates a contractor row and returns its id when none exists", async () => {
     const fakeSupabase = {
       from: () => ({
         select: () => ({
@@ -110,13 +108,16 @@ describe("getOrCreateContractor", () => {
             maybeSingle: () => Promise.resolve({ data: null, error: null }),
           }),
         }),
-        insert: insertFn,
+        insert: () => ({
+          select: () => ({
+            single: () => Promise.resolve({ data: { id: "new-contractor-id" }, error: null }),
+          }),
+        }),
       }),
     };
     // @ts-expect-error — passing minimal stub
     const id = await getOrCreateContractor(fakeSupabase, "user-xyz");
-    expect(id).toBe("user-xyz");
-    expect(insertFn).toHaveBeenCalledOnce();
+    expect(id).toBe("new-contractor-id");
   });
 
   it("throws on lookup error", async () => {
@@ -160,7 +161,7 @@ describe("runSeed", () => {
     mockFrom.mockReturnValue({
       select: () => ({
         eq: () => ({
-          maybeSingle: () => Promise.resolve({ data: { user_id: "contractor-99" }, error: null }),
+          maybeSingle: () => Promise.resolve({ data: { id: "contractor-99" }, error: null }),
         }),
       }),
       insert: () => Promise.resolve({ error: null }),
@@ -222,7 +223,7 @@ describe("runSeed", () => {
     mockFrom.mockReturnValue({
       select: () => ({
         eq: () => ({
-          maybeSingle: () => Promise.resolve({ data: { user_id: "c1" }, error: null }),
+          maybeSingle: () => Promise.resolve({ data: { id: "c1" }, error: null }),
         }),
       }),
       insert: () => Promise.resolve({ error: { message: "RLS policy violation" } }),
