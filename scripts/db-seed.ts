@@ -34,7 +34,7 @@ export async function signIn(
   return data.session.user.id;
 }
 
-export async function getContractorId(
+export async function getOrCreateContractor(
   supabase: SupabaseClient,
   userId: string
 ): Promise<string> {
@@ -43,10 +43,26 @@ export async function getContractorId(
     .select("user_id")
     .eq("user_id", userId)
     .maybeSingle();
-  if (error || !data) {
-    throw new Error(`No contractor row found for user ${userId}: ${error?.message ?? "no data"}`);
+
+  if (error) {
+    throw new Error(`Contractor lookup failed for ${userId}: ${error.message}`);
   }
-  return data.user_id;
+
+  if (data) return data.user_id;
+
+  // No row yet — create a seed contractor profile
+  console.log("  No contractor row found — creating one...");
+  const { error: insertError } = await supabase.from("contractors").insert({
+    user_id: userId,
+    business_name: "Seed Test Garage",
+    postcode: "EC1A 1BB",
+    phone: "02071234567",
+    expertise: ["bodywork", "mechanical", "electrical"],
+  });
+  if (insertError) {
+    throw new Error(`Contractor insert failed: ${insertError.message}`);
+  }
+  return userId;
 }
 
 // ─── Seed data pools ──────────────────────────────────────────────────────────
@@ -112,7 +128,7 @@ export async function runSeed(config: SeedConfig): Promise<SeedResult> {
   const garageUserId = await signIn(garageClient, config.garageEmail, config.garagePassword);
 
   console.log("Looking up contractor record...");
-  const contractorId = await getContractorId(garageClient, garageUserId);
+  const contractorId = await getOrCreateContractor(garageClient, garageUserId);
   console.log(`  Contractor ID: ${contractorId}`);
 
   console.log("Signing in as vehicle owner...");

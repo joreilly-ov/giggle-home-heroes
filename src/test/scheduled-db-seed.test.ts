@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { signIn, getContractorId, runSeed } from "../../scripts/db-seed";
+import { signIn, getOrCreateContractor, runSeed } from "../../scripts/db-seed";
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -83,8 +83,8 @@ describe("signIn", () => {
 
 // ─── getContractorId ──────────────────────────────────────────────────────────
 
-describe("getContractorId", () => {
-  it("returns the user_id as contractor id on success", async () => {
+describe("getOrCreateContractor", () => {
+  it("returns the user_id when a contractor row already exists", async () => {
     const fakeSupabase = {
       from: () => ({
         select: () => ({
@@ -93,26 +93,45 @@ describe("getContractorId", () => {
               Promise.resolve({ data: { user_id: "user-123" }, error: null }),
           }),
         }),
+        insert: () => Promise.resolve({ error: null }),
       }),
     };
     // @ts-expect-error — passing minimal stub
-    const id = await getContractorId(fakeSupabase, "user-123");
+    const id = await getOrCreateContractor(fakeSupabase, "user-123");
     expect(id).toBe("user-123");
   });
 
-  it("throws when no contractor row exists", async () => {
+  it("creates a contractor row and returns user_id when none exists", async () => {
+    const insertFn = vi.fn().mockResolvedValue({ error: null });
+    const fakeSupabase = {
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: () => Promise.resolve({ data: null, error: null }),
+          }),
+        }),
+        insert: insertFn,
+      }),
+    };
+    // @ts-expect-error — passing minimal stub
+    const id = await getOrCreateContractor(fakeSupabase, "user-xyz");
+    expect(id).toBe("user-xyz");
+    expect(insertFn).toHaveBeenCalledOnce();
+  });
+
+  it("throws on lookup error", async () => {
     const fakeSupabase = {
       from: () => ({
         select: () => ({
           eq: () => ({
             maybeSingle: () =>
-              Promise.resolve({ data: null, error: { message: "No rows found" } }),
+              Promise.resolve({ data: null, error: { message: "DB error" } }),
           }),
         }),
       }),
     };
     // @ts-expect-error — passing minimal stub
-    await expect(getContractorId(fakeSupabase, "user-xyz")).rejects.toThrow("No rows found");
+    await expect(getOrCreateContractor(fakeSupabase, "user-xyz")).rejects.toThrow("DB error");
   });
 });
 
