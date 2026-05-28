@@ -134,7 +134,7 @@ const App = () => {
               <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
               <Route path="/post-project" element={<RequireAuth><PostProject /></RequireAuth>} />
               <Route path="/photo-analyzer" element={<TradePhotoAnalyzer />} />
-              <Route path="/video-analyzer" element={<VideoAnalyzer />} />
+              <Route path="/video-analyzer" element={<RequireAuth><VideoAnalyzer /></RequireAuth>} />
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/privacy" element={<Privacy />} />
