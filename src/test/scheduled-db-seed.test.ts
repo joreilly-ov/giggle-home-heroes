@@ -84,19 +84,20 @@ describe("signIn", () => {
 // ─── getContractorId ──────────────────────────────────────────────────────────
 
 describe("getContractorId", () => {
-  it("returns the contractor id on success", async () => {
+  it("returns the user_id as contractor id on success", async () => {
     const fakeSupabase = {
       from: () => ({
         select: () => ({
           eq: () => ({
-            single: () => Promise.resolve({ data: { id: "contractor-abc" }, error: null }),
+            maybeSingle: () =>
+              Promise.resolve({ data: { user_id: "user-123" }, error: null }),
           }),
         }),
       }),
     };
     // @ts-expect-error — passing minimal stub
     const id = await getContractorId(fakeSupabase, "user-123");
-    expect(id).toBe("contractor-abc");
+    expect(id).toBe("user-123");
   });
 
   it("throws when no contractor row exists", async () => {
@@ -104,7 +105,7 @@ describe("getContractorId", () => {
       from: () => ({
         select: () => ({
           eq: () => ({
-            single: () =>
+            maybeSingle: () =>
               Promise.resolve({ data: null, error: { message: "No rows found" } }),
           }),
         }),
@@ -140,7 +141,7 @@ describe("runSeed", () => {
     mockFrom.mockReturnValue({
       select: () => ({
         eq: () => ({
-          single: () => Promise.resolve({ data: { id: "contractor-99" }, error: null }),
+          maybeSingle: () => Promise.resolve({ data: { user_id: "contractor-99" }, error: null }),
         }),
       }),
       insert: () => Promise.resolve({ error: null }),
@@ -182,7 +183,7 @@ describe("runSeed", () => {
     mockFrom.mockReturnValue({
       select: () => ({
         eq: () => ({
-          single: () => Promise.resolve({ data: null, error: { message: "No rows found" } }),
+          maybeSingle: () => Promise.resolve({ data: null, error: { message: "No rows found" } }),
         }),
       }),
     });
@@ -202,7 +203,7 @@ describe("runSeed", () => {
     mockFrom.mockReturnValue({
       select: () => ({
         eq: () => ({
-          single: () => Promise.resolve({ data: { id: "c1" }, error: null }),
+          maybeSingle: () => Promise.resolve({ data: { user_id: "c1" }, error: null }),
         }),
       }),
       insert: () => Promise.resolve({ error: { message: "RLS policy violation" } }),
