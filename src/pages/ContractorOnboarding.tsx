@@ -118,7 +118,8 @@ const ContractorOnboarding = () => {
     try {
       const { data, error } = await supabase.rpc("lookup_cslb_licence", { p_licence_number: trimmed });
       if (error) {
-        setLicenceError(error.message);
+        if (import.meta.env.DEV) console.error(error);
+        setLicenceError("Unable to look up that licence. Please try again.");
       } else if (!data) {
         setLicenceError(`No CSLB licence found for ${trimmed}`);
       } else {
@@ -176,7 +177,8 @@ const ContractorOnboarding = () => {
 
     if (error) {
       setSaving(false);
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      if (import.meta.env.DEV) console.error(error);
+      toast({ title: "Error", description: "Something went wrong. Please try again.", variant: "destructive" });
       return;
     }
 
