@@ -135,7 +135,8 @@ export default function CslbCheck() {
     try {
       const { data, error: rpcError } = await supabase.rpc("lookup_cslb_licence", { p_licence_number: trimmed });
       if (rpcError) {
-        setError(rpcError.message);
+        if (import.meta.env.DEV) console.error(rpcError);
+        setError("Lookup failed. Please try again later.");
       } else if (!data) {
         setError(`No licence found for ${trimmed}`);
       } else {
