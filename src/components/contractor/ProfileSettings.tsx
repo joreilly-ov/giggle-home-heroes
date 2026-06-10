@@ -112,7 +112,8 @@ export function ProfileSettings() {
       .eq("id", data.id);
     setSavingProfile(false);
     if (error) {
-      toast({ title: "Error saving", description: error.message, variant: "destructive" });
+      if (import.meta.env.DEV) console.error(error);
+      toast({ title: "Error saving", description: "Something went wrong. Please try again.", variant: "destructive" });
     } else {
       toast({ title: "Profile saved", description: "Your business details have been updated." });
       // Silently embed profile for AI matching
