@@ -152,7 +152,8 @@ const BrowseContractors = () => {
         .order("created_at", { ascending: false });
 
       if (fetchError) {
-        setError(fetchError.message);
+        if (import.meta.env.DEV) console.error(fetchError);
+        setError("Unable to load contractors. Please try again later.");
         setLoading(false);
         return;
       }
