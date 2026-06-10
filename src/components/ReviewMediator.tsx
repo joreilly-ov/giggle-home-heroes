@@ -308,7 +308,8 @@ function ReviewForm({
 
     if (error) {
       setStatus("error");
-      setApiError(error.message ?? "Something went wrong. Please try again.");
+      if (import.meta.env.DEV) console.error(error);
+      setApiError("Something went wrong. Please try again.");
       return;
     }
 
