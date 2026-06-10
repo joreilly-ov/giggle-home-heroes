@@ -1,0 +1,44 @@
+name: PR Isolation Tests
+
+# Runs the RLS + Cloud Run API isolation suite on every pull request.
+# Verifies two distinct authenticated users cannot read or mutate each
+# other's rows in Supabase, and cannot fetch each other's Cloud Run jobs.
+#
+# Required repository secrets:
+#   TEST_ALICE_EMAIL / TEST_ALICE_PASSWORD
+#   TEST_BOB_EMAIL   / TEST_BOB_PASSWORD
+#
+# Without these secrets the suite auto-skips (rather than failing), so
+# forked-PR runs that can't access secrets still succeed.
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  isolation:
+    name: RLS + API isolation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run isolation tests
+        run: npx vitest run src/test/rls-isolation.test.ts
+        env:
+          TEST_ALICE_EMAIL: ${{ secrets.TEST_ALICE_EMAIL }}
+          TEST_ALICE_PASSWORD: ${{ secrets.TEST_ALICE_PASSWORD }}
+          TEST_BOB_EMAIL: ${{ secrets.TEST_BOB_EMAIL }}
+          TEST_BOB_PASSWORD: ${{ secrets.TEST_BOB_PASSWORD }}
