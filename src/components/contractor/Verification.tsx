@@ -48,7 +48,8 @@ export function Verification() {
       .eq("id", contractorId);
     setSaving(false);
     if (error) {
-      toast({ title: "Error saving", description: error.message, variant: "destructive" });
+      if (import.meta.env.DEV) console.error(error);
+      toast({ title: "Error saving", description: "Something went wrong. Please try again.", variant: "destructive" });
     } else {
       toast({ title: "Verification details saved" });
     }
