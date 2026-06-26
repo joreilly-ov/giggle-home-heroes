@@ -57,3 +57,11 @@ xcuserdata/
 
 # Xcode environment overrides
 /ios/App/.xcode.env.local
+
+# Android build artifacts
+*.apk
+*.aab
+output-metadata.json
+/APK/
+/Debug Builds/
+/releases/
